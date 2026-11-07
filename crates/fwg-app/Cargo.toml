@@ -38,6 +38,12 @@ keyring = { version = "3", features = ["windows-native", "sync-secret-service", 
 [target.'cfg(target_os = "android")'.dependencies]
 slint = { version = "1.18", default-features = false, features = ["backend-android-activity-06"] }
 jni = "0.21"
+# Screen readers (TalkBack): Slint's Android backend has no accessibility support, so
+# src/android_a11y.rs builds an AccessKit tree from Slint's item tree. That needs Slint's internal
+# crate at exactly the version `slint` uses; bump both together.
+i-slint-core = { version = "=1.18.1", default-features = false }
+accesskit = "0.25"
+accesskit_android = { version = "0.9", features = ["embedded-dex"] }
 
 [build-dependencies]
 slint-build = "1.18"

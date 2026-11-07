@@ -2,6 +2,8 @@
 
 slint::include_modules!();
 
+#[cfg(target_os = "android")]
+mod android_a11y;
 mod app;
 mod images;
 mod platform;
@@ -139,6 +141,8 @@ pub fn run() -> Result<(), slint::PlatformError> {
     let session = fwg_core::Session::restore(api.clone(), platform::secure_store(&data));
     let app = app::App::new(&ui, rt.handle().clone(), api, session, Cache::new(store), images);
     app.start();
+    #[cfg(target_os = "android")]
+    android_a11y::install(&ui);
 
     let result = ui.run();
     drop(app);

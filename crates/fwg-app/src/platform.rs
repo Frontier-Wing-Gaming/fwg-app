@@ -308,7 +308,7 @@ mod android {
 
     /// Runs JNI code against the activity on the current thread (attaching it if needed). The
     /// Kotlin side catches its own exceptions; anything that still escapes is cleared here.
-    fn with_activity<R>(
+    pub(crate) fn with_activity<R>(
         f: impl FnOnce(&mut JNIEnv, &JObject) -> jni::errors::Result<R>,
     ) -> Result<R, String> {
         let app = APP.get().ok_or("Android activity is not ready.")?;

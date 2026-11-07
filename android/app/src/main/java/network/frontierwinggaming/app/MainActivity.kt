@@ -13,6 +13,8 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
+import android.view.accessibility.AccessibilityManager
 import android.window.OnBackInvokedDispatcher
 import com.google.firebase.messaging.FirebaseMessaging
 
@@ -132,6 +134,30 @@ class MainActivity : NativeActivity() {
             nativePushResult(null, "Notification permission was not granted.", false)
         }
     }
+
+    /**
+     * Screen readers: the view that Rust's AccessKit adapter (src/android_a11y.rs) attaches to,
+     * Slint's full-screen input view, which sits on top of NativeActivity's own view. Null until
+     * Slint has added it. The other views under android.R.id.content have nothing to say, so
+     * TalkBack is told to skip them. Called from the Rust thread; only reads the hierarchy.
+     */
+    @Suppress("unused")
+    fun accessibilityHost(): View? {
+        val content = findViewById<ViewGroup>(android.R.id.content) ?: return null
+        val children = (0 until content.childCount).map { content.getChildAt(it) }
+        val host = children.lastOrNull { it.javaClass.simpleName == "SlintInputView" } ?: return null
+        runOnUiThread {
+            for (child in children) {
+                if (child !== host) child.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            }
+        }
+        return host
+    }
+
+    /** Whether a screen reader (or another service that reads the screen) is on. Any thread. */
+    @Suppress("unused")
+    fun screenReaderOn(): Boolean =
+        getSystemService(AccessibilityManager::class.java)?.isEnabled == true
 
     // Staff session storage (see SecureStore). Called from Rust on any thread.
     private val secureStore by lazy { SecureStore(applicationContext) }

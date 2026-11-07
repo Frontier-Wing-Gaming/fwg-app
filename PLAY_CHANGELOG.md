@@ -20,16 +20,24 @@ Status: changes pending, not uploaded.
 Copy only the text inside this block:
 
 ```text
-• Accessibility: screen readers can now open server and stream cards, and read what's typed in text fields.
+• TalkBack support: the screen reader can now read every screen, open buttons, tabs and cards, and scroll pages.
 ```
 
 ### Details
 
 User-facing:
+- TalkBack works in the app. The Rust 1.3.0 app showed TalkBack nothing but an empty screen (the
+  Slint toolkit's Android backend has no accessibility support), a regression from the Expo app.
+  The app now builds an accessibility tree from the UI (`crates/fwg-app/src/android_a11y.rs`,
+  AccessKit): labels, roles, buttons, tabs, text fields, and scroll views, so swiping to the next
+  item scrolls the page. Checked on the Android 16 emulator with TalkBack 16: touch exploration
+  reads items, double-tap opens them, swipe navigation scrolls the Home page. Not yet checked on a
+  phone. There is no green focus outline (NativeActivity draws the window itself), and text fields
+  don't support reading by character or word yet.
 - Server, stream and staff game-server cards can be activated by screen readers (they had a
   button role and label but no action). Text fields expose their content to screen readers
   (never a password's) and can be focused and filled by them. Verified on Windows (UI
-  Automation) and Linux (AT-SPI) by the desktop end-to-end tests; not yet checked with TalkBack.
+  Automation) and Linux (AT-SPI) by the desktop end-to-end tests.
 
 ## Submitted releases
 
