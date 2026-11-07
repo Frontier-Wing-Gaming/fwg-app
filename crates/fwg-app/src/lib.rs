@@ -126,6 +126,12 @@ pub fn run() -> Result<(), slint::PlatformError> {
     slint::set_xdg_app_id("network.frontierwinggaming.app")?;
 
     let ui = AppWindow::new()?;
+    // End-to-end tests on GNOME and KDE start the window maximized, so its position on screen
+    // (which Wayland doesn't tell clients) is known.
+    #[cfg(feature = "e2e")]
+    if std::env::var_os("FWG_E2E_MAXIMIZED").is_some() {
+        ui.window().set_maximized(true);
+    }
     ui.global::<Fonts>().set_mono(platform::MONO_FONT.into());
     ui.global::<AppState>().set_back_key(platform::handles_back_key());
 

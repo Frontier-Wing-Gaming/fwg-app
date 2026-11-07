@@ -1,7 +1,8 @@
 # Desktop end-to-end tests: the real app (built with --features e2e) against a mock website,
-# driven through its accessibility tree on Windows, Linux X11 and Linux Wayland. Covers the public
-# screens, clipboard, Escape, staff sign-in, a gallery upload through the system file picker
-# (EXIF/GPS stripped, rotation applied), the session surviving a restart (OS keyring) and sign-out.
+# driven through its accessibility tree on Windows and on Linux under X11, sway, GNOME and KDE.
+# Covers the public screens, clipboard, Escape, staff sign-in, a gallery upload through the system
+# file picker (the desktop's real dialog on sway, GNOME and KDE; EXIF/GPS stripped, rotation
+# applied), the session surviving a restart (OS keyring) and sign-out.
 # Uses no secrets and never contacts the real website. Screenshots are kept as run artifacts.
 name: Desktop E2E
 
@@ -51,7 +52,13 @@ jobs:
         run: sh e2e/run_linux.sh x11 target/debug/fwg e2e-out/linux-x11
       - name: Wayland (sway)
         if: success() || failure()
-        run: sh e2e/run_linux.sh wayland target/debug/fwg e2e-out/linux-wayland
+        run: sh e2e/run_linux.sh sway target/debug/fwg e2e-out/linux-sway
+      - name: GNOME
+        if: success() || failure()
+        run: sh e2e/run_linux.sh gnome target/debug/fwg e2e-out/linux-gnome
+      - name: KDE
+        if: success() || failure()
+        run: sh e2e/run_linux.sh kde target/debug/fwg e2e-out/linux-kde
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

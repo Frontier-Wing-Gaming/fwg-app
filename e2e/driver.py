@@ -1,6 +1,6 @@
 """Desktop end-to-end test: drives the real app through its accessibility tree.
 
-    python e2e/driver.py --app <path to fwg[.exe]> --out <dir> [--session x11|wayland]
+    python e2e/driver.py --app <path to fwg[.exe]> --out <dir> [--session x11|sway|gnome|kde]
 
 Starts e2e/mock_server.py, launches an app built with `--features e2e` against it, then walks
 through the public screens, staff sign-in, a gallery upload through the system file picker, a
@@ -89,7 +89,11 @@ class Run:
 
     def shot(self, name):
         self.step += 1
-        self.ui.screenshot(self.out / f"{self.step:02d}-{name}.png")
+        try:
+            self.ui.screenshot(self.out / f"{self.step:02d}-{name}.png")
+        except NotImplementedError as e:
+            if self.step == 1:
+                print(f"    (no screenshots: {e})", flush=True)
 
     def expect(self, name, timeout=20, role=None):
         """Waits for an element, scrolling the page when it may be below or above the fold.
@@ -188,8 +192,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", required=True)
     parser.add_argument("--out", required=True)
-    parser.add_argument("--session", default="x11", choices=["x11", "wayland"])
+    parser.add_argument("--session", default="x11", choices=["x11", "sway", "wayland", "gnome", "kde"])
     args = parser.parse_args()
+    if args.session == "wayland":  # the original name of the sway session
+        args.session = "sway"
 
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
