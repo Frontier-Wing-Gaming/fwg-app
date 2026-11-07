@@ -9,15 +9,28 @@ details go in the notes below it.
 
 ## Pending release
 
-Version: **1.3.0**, versionCode **14** (Play's latest before this was 13, the Expo app's 1.2.1)  
-Build: `.\android\build.ps1 -Release -VersionCode 14` →
-`android\app\build\outputs\bundle\release\app-release.aab`  
-Status: not uploaded yet. Upload to **Internal testing** first: this is the first build of the new
-app installed over the Expo one.
+Version: next after **1.3.0** (bump `version` in `Cargo.toml`), versionCode **15**  
+Build: GitHub Actions → Play release → Run workflow with versionCode 15 (uploads to Internal
+testing), or locally `.\android\build.ps1 -Release -VersionCode 15`  
+Status: no changes yet.
 
 ### Copy for Google Play — What's new
 
 Copy only the text inside this block:
+
+```text
+```
+
+### Details
+
+## Submitted releases
+
+### 1.3.0 (versionCode 14) — live
+
+First release of the Rust app, replacing the Expo app's 1.2.1 (versionCode 13). Live on Google
+Play as of 2026-11-07.
+
+#### What's new (as submitted)
 
 ```text
 • Rebuilt from the ground up: the app now uses about a third less memory.
@@ -28,7 +41,7 @@ Copy only the text inside this block:
 • Staff: multi-line fields grow to fit their text.
 ```
 
-### Details
+#### Details
 
 User-facing:
 - The whole app is rewritten in Rust with the Slint UI toolkit, replacing Expo / React Native.
@@ -54,8 +67,6 @@ Compatibility:
 - Requires the website's FCM push support (`api/v1/_fcm.php`, `push_devices.provider`), deployed
   2026-11-06.
 - Android 8.0+ (minSdk 26), as before. Includes 64-bit ARM, 32-bit ARM and x86_64.
-
-## Submitted releases
 
 The Expo app's history (up to 1.2.1, versionCode 13) is in the Expo app's repository
 (`PENDING_GOOGLE_PLAY_CHANGELOG.md`).
