@@ -12,3 +12,4 @@
 credentials.json
 /android/app/google-services.json
 /android/local.ps1
+/dist

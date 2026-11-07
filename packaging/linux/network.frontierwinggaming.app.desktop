@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Frontier Gaming Network
+Comment=News, live streams, gallery and game servers of the Frontier Wing Gaming Network
+Exec=fwg
+Icon=network.frontierwinggaming.app
+Terminal=false
+Categories=Game;Network;
+StartupWMClass=network.frontierwinggaming.app

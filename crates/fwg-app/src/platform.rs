@@ -36,7 +36,7 @@ pub use android::*;
 mod desktop {
     use super::PathBuf;
     use crate::app::{OsEvent, post_os_event};
-    use fwg_core::storage::{FileStore, KeyValueStore, MemoryStore};
+    use fwg_core::storage::{KeyValueStore, MemoryStore};
 
     /// Where the cache, staff session and image cache live.
     pub fn data_dir() -> PathBuf {
@@ -68,12 +68,60 @@ mod desktop {
     /// Back pressed on the Home tab. A desktop window stays open.
     pub fn leave_app() {}
 
-    /// Staff session storage. Desktop builds are for development, so this is a plain file store
-    /// in its own folder; Android uses Keystore-backed encryption.
+    /// Staff session storage in the OS credential store: Windows Credential Manager, or the
+    /// Secret Service keyring (GNOME Keyring, KWallet) on Linux. Without a usable keyring the
+    /// session is kept in memory only, so staff sign in again after restarting; it is never
+    /// written to disk unencrypted.
     pub fn secure_store(data: &std::path::Path) -> std::sync::Arc<dyn KeyValueStore> {
-        match FileStore::new(data.join("secure")) {
-            Ok(store) => std::sync::Arc::new(store),
-            Err(_) => std::sync::Arc::new(MemoryStore::default()),
+        // Earlier development builds kept the session in plain files here; remove them.
+        let _ = std::fs::remove_dir_all(data.join("secure"));
+        match KeyringStore::probe() {
+            Some(store) => std::sync::Arc::new(store),
+            None => {
+                log("No OS keyring available; the staff session will not be remembered.");
+                std::sync::Arc::new(MemoryStore::default())
+            }
+        }
+    }
+
+    /// One credential per key, under the app's package name as the service.
+    pub(super) struct KeyringStore;
+
+    impl KeyringStore {
+        const SERVICE: &'static str = "network.frontierwinggaming.app";
+
+        /// Returns a store if the keyring answers at all ("no entry" counts as working).
+        pub(super) fn probe() -> Option<Self> {
+            let entry = keyring::Entry::new(Self::SERVICE, "fwg.probe").ok()?;
+            match entry.get_password() {
+                Ok(_) | Err(keyring::Error::NoEntry) => Some(Self),
+                Err(_) => None,
+            }
+        }
+
+        fn entry(key: &str) -> std::io::Result<keyring::Entry> {
+            keyring::Entry::new(Self::SERVICE, key).map_err(std::io::Error::other)
+        }
+    }
+
+    impl KeyValueStore for KeyringStore {
+        fn get(&self, key: &str) -> std::io::Result<Option<String>> {
+            match Self::entry(key)?.get_password() {
+                Ok(value) => Ok(Some(value)),
+                Err(keyring::Error::NoEntry) => Ok(None),
+                Err(e) => Err(std::io::Error::other(e)),
+            }
+        }
+
+        fn set(&self, key: &str, value: &str) -> std::io::Result<()> {
+            Self::entry(key)?.set_password(value).map_err(std::io::Error::other)
+        }
+
+        fn delete(&self, key: &str) -> std::io::Result<()> {
+            match Self::entry(key)?.delete_credential() {
+                Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+                Err(e) => Err(std::io::Error::other(e)),
+            }
         }
     }
 
@@ -280,5 +328,23 @@ mod android {
         let text = std::ffi::CString::new(message.replace('\0', " ")).unwrap_or_default();
         // 6 = ANDROID_LOG_ERROR
         unsafe { __android_log_write(6, c"fwg".as_ptr().cast(), text.as_ptr().cast()) };
+    }
+}
+
+#[cfg(all(test, not(any(target_os = "android", target_os = "ios"))))]
+mod tests {
+    use fwg_core::storage::KeyValueStore;
+
+    /// Touches the real OS keyring, so it only runs when asked: `cargo test -- --ignored keyring`.
+    #[test]
+    #[ignore]
+    fn keyring_round_trip() {
+        let store = super::desktop::KeyringStore::probe().expect("no keyring");
+        let key = "fwg.test.round-trip";
+        store.set(key, "value ✓").unwrap();
+        assert_eq!(store.get(key).unwrap().as_deref(), Some("value ✓"));
+        store.delete(key).unwrap();
+        assert_eq!(store.get(key).unwrap(), None);
+        store.delete(key).unwrap(); // deleting a missing key is fine
     }
 }

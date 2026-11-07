@@ -25,7 +25,9 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 slint = { version = "1.18", default-features = false, features = ["backend-winit", "renderer-femtovg"] }
 open = "5"
 rfd = "0.15"
-arboard = { version = "3", default-features = false }
+arboard = { version = "3", default-features = false, features = ["wayland-data-control"] }
+# Staff session in Windows Credential Manager / the Linux Secret Service (libdbus built in).
+keyring = { version = "3", features = ["windows-native", "sync-secret-service", "crypto-rust", "vendored"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 slint = { version = "1.18", default-features = false, features = ["backend-android-activity-06"] }
@@ -34,3 +36,18 @@ jni = "0.21"
 [build-dependencies]
 slint-build = "1.18"
 winresource = { version = "0.1", default-features = false }
+
+# Linux .deb (cargo deb -p fwg-app), built by .github/workflows/desktop-release.yml.
+[package.metadata.deb]
+name = "frontier-gaming-network"
+maintainer = "Frontier Wing Gaming <staff@frontierwinggaming.network>"
+copyright = "2026 Frontier Wing Gaming"
+license-file = ["../../LICENSE", "0"]
+extended-description = "News, live streams, the gallery and game server status of the Frontier Wing Gaming Network."
+section = "games"
+depends = "$auto"
+assets = [
+    ["target/release/fwg", "usr/bin/", "755"],
+    ["../../packaging/linux/network.frontierwinggaming.app.desktop", "usr/share/applications/", "644"],
+    ["../../icon.png", "usr/share/icons/hicolor/128x128/apps/network.frontierwinggaming.app.png", "644"],
+]

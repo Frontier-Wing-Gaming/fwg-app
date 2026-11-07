@@ -118,6 +118,10 @@ pub fn run() -> Result<(), slint::PlatformError> {
             .renderer_name("software".into())
             .select()?;
     }
+    // Linux desktops match the window to network.frontierwinggaming.app.desktop (menu entry
+    // and icon) by this id.
+    #[cfg(target_os = "linux")]
+    slint::set_xdg_app_id("network.frontierwinggaming.app")?;
 
     let ui = AppWindow::new()?;
     ui.global::<Fonts>().set_mono(platform::MONO_FONT.into());

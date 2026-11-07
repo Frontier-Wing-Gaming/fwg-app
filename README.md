@@ -1,8 +1,8 @@
 # Frontier Gaming Network app
 
 The Frontier Wing Gaming Network app, written in Rust with [Slint](https://slint.dev). It replaces the
-earlier Expo / React Native app and uses much less memory. The Android app is on Google Play as
-`network.frontierwinggaming.app`; iOS is planned.
+earlier Expo / React Native app and uses much less memory. It runs on Android (Google Play,
+`network.frontierwinggaming.app`), Windows and Linux.
 
 ## Layout
 
@@ -14,15 +14,37 @@ earlier Expo / React Native app and uses much less memory. The Android app is on
   into screen data, `src/images.rs` downloads, caches and downsizes remote images.
 - `android/`: the Gradle project that packages the Rust library as an Android app.
 
-## Desktop
+## Desktop (Windows and Linux)
 
 ```powershell
 cargo run -p fwg-app            # desktop window (debug)
 cargo run -p fwg-app --release  # use this one to measure memory
 ```
 
-Escape goes back. On Windows, settings, the offline cache and the image cache live in
-`%LOCALAPPDATA%\FrontierGamingNetwork`.
+Escape goes back. The offline cache and image cache live in `%LOCALAPPDATA%\FrontierGamingNetwork`
+on Windows and `~/.local/share/FrontierGamingNetwork` on Linux. The staff session is kept in the OS
+credential store (Windows Credential Manager, or the Secret Service keyring on Linux); without a
+keyring it is kept in memory only. Push notifications are Android-only.
+
+Building on Linux needs `libfontconfig1-dev` and `libxkbcommon-dev` (Debian/Ubuntu names).
+
+### Desktop releases
+
+`.github/workflows/desktop-release.yml` builds:
+
+| Platform | Files |
+|---|---|
+| Windows x64 | Inno Setup installer (per-user, no admin rights), portable `.zip` |
+| Linux x86_64 | `.AppImage`, `.deb`, `.tar.gz` |
+
+To publish a release, bump `version` in `Cargo.toml`, commit, then push a matching tag:
+`git tag v1.3.1 && git push origin v1.3.1`. The workflow checks that the tag matches the version, builds
+everything and creates a GitHub release with the files and `SHA256SUMS.txt`. Running the workflow by hand
+(Actions → Desktop release) only builds; the files are in the run's artifacts.
+
+The Windows builds are not code-signed, so SmartScreen warns on first launch. The installer script is
+`packaging/windows/fwg.iss`, the Linux menu entry `packaging/linux/network.frontierwinggaming.app.desktop`,
+and the `.deb` settings are under `[package.metadata.deb]` in `crates/fwg-app/Cargo.toml`.
 
 ```powershell
 cargo test --workspace                                # unit and mock-server tests
@@ -149,6 +171,7 @@ On Linux (and in CI) installing `ninja-build` and `libclang-19-dev` is enough.
 
 ## GitHub Actions
 
+- `desktop-release.yml`: Windows and Linux builds, see [Desktop releases](#desktop-releases).
 - `ci.yml` runs the `fwg-core` tests on every push and pull request. It uses no secrets.
 - `play-release.yml` builds the signed bundle and uploads it to the Play **Internal testing** track. Run it
   from Actions → Play release → Run workflow and enter the next versionCode (untick the upload option to
@@ -189,4 +212,6 @@ Learned the hard way while building the screens; keep them in mind when adding U
    (resized, EXIF/GPS data removed), manage news, gallery, staff and game servers, push history, change
    password
 4. ✅ Push notifications through Firebase Cloud Messaging instead of Expo
-5. iOS (needs a Mac or a cloud Mac)
+5. Windows and Linux releases
+
+iOS is not planned (Apple's developer program costs more than it's worth for this app).
