@@ -52,6 +52,41 @@ cargo test -p fwg-core --test api -- --ignored live_  # smoke test against the r
 cargo clippy --workspace --all-targets
 ```
 
+### End-to-end tests
+
+`.github/workflows/desktop-e2e.yml` runs the real app on Windows, Linux X11 and Linux Wayland (headless
+sway) on every push and pull request, against a mock of the website (`e2e/mock_server.py`), and drives it
+through its accessibility tree like a screen reader would. It checks:
+
+- the public screens load the mock's data, the server page copies its address, and Escape goes back
+- staff sign-in rejects a wrong password and accepts the right one
+- a gallery upload through the system file picker: the uploaded JPEG must have the camera rotation
+  applied and no EXIF/GPS data left
+- after a restart the staff session comes back from the OS keyring, and sign-out clears it
+
+Screenshots of every step are kept as run artifacts. The app is built with `--features e2e`, which only
+then reads the API address from `FWG_API_ROOT`; shipped builds can't be pointed at another server.
+
+On Linux the file dialog comes from the desktop's file-chooser portal, so the test uses a stand-in
+(`e2e/fake_portal.py`) that answers with the test image. On Wayland, `e2e/wlpointer` keeps one virtual
+pointer connected for the whole session, since headless sway has no input devices.
+
+Run them locally:
+
+```powershell
+cargo build -p fwg-app --features e2e
+pip install -r e2e/requirements-windows.txt
+python e2e/driver.py --app target/debug/fwg.exe --out e2e-out/windows
+```
+
+```sh
+cargo build -p fwg-app --features e2e
+cargo build --release --manifest-path e2e/wlpointer/Cargo.toml
+sh e2e/run_linux.sh wayland target/debug/fwg e2e-out/wayland   # or x11
+```
+
+The Linux run needs the packages listed at the top of `e2e/run_linux.sh`.
+
 ## Memory
 
 Release builds, after visiting every screen (gallery, staff avatars and a server banner loaded):
@@ -172,6 +207,7 @@ On Linux (and in CI) installing `ninja-build` and `libclang-19-dev` is enough.
 ## GitHub Actions
 
 - `desktop-release.yml`: Windows and Linux builds, see [Desktop releases](#desktop-releases).
+- `desktop-e2e.yml`: desktop end-to-end tests, see [End-to-end tests](#end-to-end-tests).
 - `ci.yml` runs the `fwg-core` tests on every push and pull request. It uses no secrets.
 - `play-release.yml` builds the signed bundle and uploads it to the Play **Internal testing** track. Run it
   from Actions → Play release → Run workflow and enter the next versionCode (untick the upload option to

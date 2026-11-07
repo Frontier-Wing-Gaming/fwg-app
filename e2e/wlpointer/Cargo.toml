@@ -1,0 +1,10 @@
+# Test helper for the Wayland end-to-end run (e2e/run_linux.sh), not part of the app.
+[package]
+name = "wlpointer"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+wayland-client = "0.31"
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }

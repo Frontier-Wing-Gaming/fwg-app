@@ -58,6 +58,11 @@ export component Card inherits Rectangle {
     border-radius: 16px;
     clip: true;
 
+    // Tappable cards set accessible-role/label where they are used; this makes them activatable
+    // by screen readers (and the desktop end-to-end tests) too.
+    accessible-role: none;
+    accessible-action-default => { if root.tappable { root.clicked(); } }
+
     ta := TouchArea {
         enabled: root.tappable;
         mouse-cursor: root.tappable ? pointer : default;
@@ -225,6 +230,11 @@ export component Field inherits Rectangle {
     clip: true;
     accessible-role: text-input;
     accessible-label: root.placeholder;
+    // Screen readers (and the desktop end-to-end tests) can read, set and focus the field.
+    // A password's value is never exposed.
+    accessible-value: root.input-type == InputType.password ? "" : input.text;
+    accessible-action-set-value(value) => { input.text = value; }
+    accessible-action-default => { input.focus(); }
 
     TouchArea {
         mouse-cursor: MouseCursor.text;

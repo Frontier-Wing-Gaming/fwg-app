@@ -133,7 +133,7 @@ pub fn run() -> Result<(), slint::PlatformError> {
         // Still usable without disk; there is just no offline copy.
         Err(_) => Arc::new(MemoryStore::default()),
     };
-    let api = ApiClient::default();
+    let api = api_client();
     let images =
         images::ImageLoader::new(api.http().clone(), rt.handle().clone(), data.join("images"));
     let session = fwg_core::Session::restore(api.clone(), platform::secure_store(&data));
@@ -144,4 +144,14 @@ pub fn run() -> Result<(), slint::PlatformError> {
     drop(app);
     rt.shutdown_background();
     result
+}
+
+/// The website API. End-to-end test builds (`--features e2e`) talk to the mock server named in
+/// `FWG_API_ROOT` instead.
+fn api_client() -> ApiClient {
+    #[cfg(feature = "e2e")]
+    if let Some(root) = std::env::var_os("FWG_API_ROOT") {
+        return ApiClient::new(&root.to_string_lossy());
+    }
+    ApiClient::default()
 }

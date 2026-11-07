@@ -88,7 +88,11 @@ mod desktop {
     pub(super) struct KeyringStore;
 
     impl KeyringStore {
-        const SERVICE: &'static str = "network.frontierwinggaming.app";
+        const SERVICE: &'static str = if cfg!(feature = "e2e") {
+            "network.frontierwinggaming.app.e2e"
+        } else {
+            "network.frontierwinggaming.app"
+        };
 
         /// Returns a store if the keyring answers at all ("no entry" counts as working).
         pub(super) fn probe() -> Option<Self> {

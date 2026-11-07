@@ -1,0 +1,97 @@
+# Desktop end-to-end tests: the real app (built with --features e2e) against a mock website,
+# driven through its accessibility tree on Windows, Linux X11 and Linux Wayland. Covers the public
+# screens, clipboard, Escape, staff sign-in, a gallery upload through the system file picker
+# (EXIF/GPS stripped, rotation applied), the session surviving a restart (OS keyring) and sign-out.
+# Uses no secrets and never contacts the real website. Screenshots are kept as run artifacts.
+name: Desktop E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install test session tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends \
+            libfontconfig1-dev libxkbcommon-dev \
+            dbus-x11 gnome-keyring at-spi2-core python3-pyatspi python3-dbus python3-gi python3-pil \
+            xvfb xdotool xclip imagemagick sway grim wtype wl-clipboard \
+            libxkbcommon-x11-0 fonts-dejavu-core
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: e2e
+          workspaces: |
+            . -> target
+            e2e/wlpointer -> target
+      - name: Build
+        run: |
+          cargo build --locked -p fwg-app --bin fwg --features e2e
+          cargo build --locked --release --manifest-path e2e/wlpointer/Cargo.toml
+      - name: X11
+        run: sh e2e/run_linux.sh x11 target/debug/fwg e2e-out/linux-x11
+      - name: Wayland (sway)
+        if: success() || failure()
+        run: sh e2e/run_linux.sh wayland target/debug/fwg e2e-out/linux-wayland
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: e2e-linux
+          path: |
+            e2e-out/**/*.png
+            e2e-out/**/*.log
+            e2e-out/**/tree.txt
+          retention-days: 14
+
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: e2e
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Build
+        run: cargo build --locked -p fwg-app --bin fwg --features e2e
+      - name: Test
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python -m pip install --disable-pip-version-check -q -r e2e/requirements-windows.txt
+          python e2e/driver.py --app target/debug/fwg.exe --out e2e-out/windows
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: e2e-windows
+          path: |
+            e2e-out/**/*.png
+            e2e-out/**/*.log
+            e2e-out/**/tree.txt
+          retention-days: 14

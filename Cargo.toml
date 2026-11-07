@@ -1,6 +1,8 @@
 [workspace]
 resolver = "3"
 members = ["crates/fwg-core", "crates/fwg-app"]
+# e2e/wlpointer is a standalone test helper with its own lockfile.
+exclude = ["e2e"]
 
 [workspace.package]
 # Also the Android versionName (android/app/build.gradle.kts reads it from here).

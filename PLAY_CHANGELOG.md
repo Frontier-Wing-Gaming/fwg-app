@@ -13,16 +13,23 @@ release as the en-US "What's new", and refuses to upload if it is empty or too l
 Version: next after **1.3.0** (bump `version` in `Cargo.toml`), versionCode **15**  
 Build: GitHub Actions → Play release → Run workflow with versionCode 15 (uploads to Internal
 testing), or locally `.\android\build.ps1 -Release -VersionCode 15`  
-Status: no changes yet.
+Status: changes pending, not uploaded.
 
 ### Copy for Google Play — What's new
 
 Copy only the text inside this block:
 
 ```text
+• Accessibility: screen readers can now open server and stream cards, and read what's typed in text fields.
 ```
 
 ### Details
+
+User-facing:
+- Server, stream and staff game-server cards can be activated by screen readers (they had a
+  button role and label but no action). Text fields expose their content to screen readers
+  (never a password's) and can be focused and filled by them. Verified on Windows (UI
+  Automation) and Linux (AT-SPI) by the desktop end-to-end tests; not yet checked with TalkBack.
 
 ## Submitted releases
 

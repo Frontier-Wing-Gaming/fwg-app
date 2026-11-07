@@ -12,6 +12,12 @@ crate-type = ["lib", "cdylib"]
 name = "fwg"
 path = "src/main.rs"
 
+[features]
+# End-to-end test builds only (.github/workflows/desktop-e2e.yml): the API address comes from
+# FWG_API_ROOT and the keyring entries get their own service name. Release builds never enable it,
+# so an installed app can't be pointed at another server.
+e2e = []
+
 [dependencies]
 fwg-core = { path = "../fwg-core" }
 slint = { version = "1.18", default-features = false, features = ["std", "compat-1-2", "renderer-software", "accessibility"] }

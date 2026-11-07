@@ -72,6 +72,8 @@ export component ManageServersPage inherits Screen {
     }
     for item in ServerState.items: Card {
         tappable: true;
+        accessible-role: button;
+        accessible-label: item.title;
         trailing: "›";
         clicked => { ServerState.open(item.slug); }
         HorizontalLayout {
