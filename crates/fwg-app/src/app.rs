@@ -50,7 +50,11 @@ pub enum OsEvent {
     /// A tapped notification's `data.route`; only allow-listed screens are opened.
     Route(String),
     /// Result of fetching the FCM token. `silent` = the automatic re-registration at launch.
-    PushToken { token: Option<String>, error: Option<String>, silent: bool },
+    PushToken {
+        token: Option<String>,
+        error: Option<String>,
+        silent: bool,
+    },
     /// The photo picker's result for a gallery upload (desktop file dialog or Android picker).
     ImagePicked {
         bytes: Option<Vec<u8>>,
@@ -66,7 +70,10 @@ static OS_EVENTS: Mutex<Vec<OsEvent>> = Mutex::new(Vec::new());
 /// it arrives before the app is running (e.g. a notification tap that launched the app).
 #[cfg_attr(not(target_os = "android"), allow(dead_code))]
 pub fn post_os_event(event: OsEvent) {
-    OS_EVENTS.lock().unwrap_or_else(PoisonError::into_inner).push(event);
+    OS_EVENTS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .push(event);
     let _ = slint::invoke_from_event_loop(drain_os_events);
 }
 
@@ -213,17 +220,28 @@ impl App {
                 Some(route) => self.navigate(route_page(route)),
                 None => platform::log(&format!("ignored notification route {path:?}")),
             },
-            OsEvent::PushToken { token: Some(token), silent, .. } => self.register_push(token, silent),
-            OsEvent::PushToken { token: None, error, silent } => {
+            OsEvent::PushToken {
+                token: Some(token),
+                silent,
+                ..
+            } => self.register_push(token, silent),
+            OsEvent::PushToken {
+                token: None,
+                error,
+                silent,
+            } => {
                 let message = error.unwrap_or_else(|| "Notifications could not be enabled.".into());
                 platform::log(&format!("push: {message}"));
                 if !silent {
                     self.ui(|s| s.set_more_notice(message.into()));
                 }
             }
-            OsEvent::ImagePicked { bytes, name, mime, error } => {
-                self.image_picked(bytes, name, mime, error)
-            }
+            OsEvent::ImagePicked {
+                bytes,
+                name,
+                mime,
+                error,
+            } => self.image_picked(bytes, name, mime, error),
         }
     }
 

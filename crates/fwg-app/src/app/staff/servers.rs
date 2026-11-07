@@ -14,7 +14,7 @@ use slint::{Color, ComponentHandle, ModelRc, SharedString, VecModel};
 
 use super::List;
 use crate::app::{App, error_chain};
-use crate::{platform, AppWindow, Choice, LoadState, Page, ServerForm, ServerRow, ServerState};
+use crate::{AppWindow, Choice, LoadState, Page, ServerForm, ServerRow, ServerState, platform};
 
 const DEFAULT_ACCENT: &str = "#4f8fe8";
 const DEFAULT_ORDER: &str = "1000";
@@ -77,9 +77,13 @@ impl App {
             list.loading = true;
         }
         self.render_servers();
-        let Some(token) = self.session.token() else { return self.after_staff_request() };
+        let Some(token) = self.session.token() else {
+            return self.after_staff_request();
+        };
         let api = self.api.clone();
-        let task = self.rt.spawn(async move { api.admin_servers(&token).await });
+        let task = self
+            .rt
+            .spawn(async move { api.admin_servers(&token).await });
         let app = self.clone();
         let _ = slint::spawn_local(async move {
             let result = task.await;
@@ -90,7 +94,8 @@ impl App {
                     Ok(Ok(response)) => {
                         list.items = response.items;
                         list.error = None;
-                        *app.staff.servers.options.borrow_mut() = response.options.unwrap_or_default();
+                        *app.staff.servers.options.borrow_mut() =
+                            response.options.unwrap_or_default();
                     }
                     Ok(Err(e)) => {
                         platform::log(&format!("servers: {}", error_chain(&e)));
@@ -105,7 +110,9 @@ impl App {
     }
 
     fn is_admin(&self) -> bool {
-        self.session.user().is_some_and(|u| u.role == "owner" || u.role == "admin")
+        self.session
+            .user()
+            .is_some_and(|u| u.role == "owner" || u.role == "admin")
     }
 
     fn render_servers(&self) {
@@ -130,8 +137,15 @@ impl App {
     }
 
     fn edit_server(self: &Rc<Self>, slug: &str) {
-        let Some(server) =
-            self.staff.servers.list.borrow().items.iter().find(|s| s.slug == slug).cloned()
+        let Some(server) = self
+            .staff
+            .servers
+            .list
+            .borrow()
+            .items
+            .iter()
+            .find(|s| s.slug == slug)
+            .cloned()
         else {
             return;
         };
@@ -204,7 +218,14 @@ impl App {
         let form = ui.global::<ServerState>().get_form();
         let editing = self.staff.servers.editing.borrow().clone();
         let server = editing.as_ref().and_then(|slug| {
-            self.staff.servers.list.borrow().items.iter().find(|s| &s.slug == slug).cloned()
+            self.staff
+                .servers
+                .list
+                .borrow()
+                .items
+                .iter()
+                .find(|s| &s.slug == slug)
+                .cloned()
         });
         match server {
             None => {
@@ -256,11 +277,20 @@ impl App {
 
     fn editing_server(&self) -> Option<AdminServer> {
         let slug = self.staff.servers.editing.borrow().clone()?;
-        self.staff.servers.list.borrow().items.iter().find(|s| s.slug == slug).cloned()
+        self.staff
+            .servers
+            .list
+            .borrow()
+            .items
+            .iter()
+            .find(|s| s.slug == slug)
+            .cloned()
     }
 
     fn delete_server(self: &Rc<Self>) {
-        let Some(server) = self.editing_server() else { return };
+        let Some(server) = self.editing_server() else {
+            return;
+        };
         let title = title_of(&server);
         self.confirm(
             "Delete server?",
@@ -284,7 +314,9 @@ impl App {
     }
 
     fn reset_server(self: &Rc<Self>) {
-        let Some(server) = self.editing_server() else { return };
+        let Some(server) = self.editing_server() else {
+            return;
+        };
         let title = title_of(&server);
         self.confirm(
             "Reset to defaults?",
@@ -306,7 +338,11 @@ impl App {
 }
 
 fn choice(value: &str, label: &str) -> Choice {
-    Choice { value: value.into(), label: label.into(), ..Default::default() }
+    Choice {
+        value: value.into(),
+        label: label.into(),
+        ..Default::default()
+    }
 }
 
 fn title_of(server: &AdminServer) -> String {
@@ -346,7 +382,12 @@ fn type_options(options: &AdminServerOptions) -> Vec<AdminServerTypeOption> {
     ];
     fallback
         .into_iter()
-        .filter(|(value, ..)| options.types.as_ref().is_none_or(|t| t.iter().any(|x| x == value)))
+        .filter(|(value, ..)| {
+            options
+                .types
+                .as_ref()
+                .is_none_or(|t| t.iter().any(|x| x == value))
+        })
         .map(|(value, label, port, query_port)| AdminServerTypeOption {
             value: value.into(),
             label: label.into(),
@@ -372,7 +413,12 @@ fn server_row(server: &AdminServer) -> ServerRow {
         "No address set".to_owned()
     };
     let mut meta = Vec::new();
-    if let Some(operator) = server.details.as_ref().map(|d| &d.operator).filter(|o| !o.is_empty()) {
+    if let Some(operator) = server
+        .details
+        .as_ref()
+        .map(|d| &d.operator)
+        .filter(|o| !o.is_empty())
+    {
         meta.push(format!("Run by {operator}"));
     }
     if let Some(by) = server.updated_by.as_ref().filter(|_| server.edited) {
@@ -513,7 +559,10 @@ fn to_input(form: &ServerForm, full: bool, creating: bool) -> AdminServerInput {
                     mods: Some(NumOrText::Text(form.dl_mods.trim().to_owned())),
                 }
             } else {
-                GameDownloadPatch { url: Some(String::new()), ..Default::default() }
+                GameDownloadPatch {
+                    url: Some(String::new()),
+                    ..Default::default()
+                }
             });
         }
     }
@@ -527,7 +576,11 @@ fn parse_hex(text: &str) -> Option<Color> {
         return None;
     }
     let value = u32::from_str_radix(hex, 16).ok()?;
-    Some(Color::from_rgb_u8((value >> 16) as u8, (value >> 8) as u8, value as u8))
+    Some(Color::from_rgb_u8(
+        (value >> 16) as u8,
+        (value >> 8) as u8,
+        value as u8,
+    ))
 }
 
 #[cfg(test)]
@@ -536,14 +589,21 @@ mod tests {
 
     #[test]
     fn parses_accent() {
-        assert_eq!(parse_hex("#4f8fe8"), Some(Color::from_rgb_u8(0x4f, 0x8f, 0xe8)));
+        assert_eq!(
+            parse_hex("#4f8fe8"),
+            Some(Color::from_rgb_u8(0x4f, 0x8f, 0xe8))
+        );
         assert_eq!(parse_hex("4f8fe8"), None);
         assert_eq!(parse_hex("#4f8"), None);
     }
 
     #[test]
     fn file_server_input_has_only_overrides() {
-        let form = ServerForm { host: " play.example.com ".into(), port: "".into(), ..empty_form() };
+        let form = ServerForm {
+            host: " play.example.com ".into(),
+            port: "".into(),
+            ..empty_form()
+        };
         let input = to_input(&form, false, false);
         assert_eq!(input.host.as_deref(), Some("play.example.com"));
         assert!(input.port.is_none());
@@ -552,10 +612,17 @@ mod tests {
 
     #[test]
     fn new_minecraft_server_sends_type_and_download() {
-        let form = ServerForm { name: "Minecraft".into(), dl_url: "/packs/a.zip".into(), ..empty_form() };
+        let form = ServerForm {
+            name: "Minecraft".into(),
+            dl_url: "/packs/a.zip".into(),
+            ..empty_form()
+        };
         let input = to_input(&form, true, true);
         assert_eq!(input.kind.as_deref(), Some("minecraft"));
-        assert_eq!(input.download.and_then(|d| d.url).as_deref(), Some("/packs/a.zip"));
+        assert_eq!(
+            input.download.and_then(|d| d.url).as_deref(),
+            Some("/packs/a.zip")
+        );
         assert!(matches!(input.order, Some(NumOrText::Text(ref o)) if o == "1000"));
     }
 
@@ -565,7 +632,10 @@ mod tests {
             types: Some(vec!["minecraft".into(), "none".into()]),
             ..Default::default()
         };
-        let values: Vec<_> = type_options(&options).into_iter().map(|t| t.value).collect();
+        let values: Vec<_> = type_options(&options)
+            .into_iter()
+            .map(|t| t.value)
+            .collect();
         assert_eq!(values, ["minecraft", "none"]);
     }
 }

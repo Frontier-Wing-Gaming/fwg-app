@@ -1,5 +1,5 @@
-# Runs the core library's tests on every push and pull request. Uses no secrets, so it is safe
-# for pull requests from forks.
+# Runs the core library's tests and checks formatting on every push and pull request. Uses no
+# secrets, so it is safe for pull requests from forks.
 name: CI
 
 on:
@@ -25,3 +25,19 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo test -p fwg-core --locked
+
+  fmt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+          components: rustfmt
+      - name: Check formatting (run `cargo fmt --all` to fix)
+        run: |
+          cargo fmt --all -- --check
+          cargo fmt --manifest-path e2e/wlpointer/Cargo.toml -- --check

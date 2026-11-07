@@ -118,7 +118,9 @@ mod desktop {
         }
 
         fn set(&self, key: &str, value: &str) -> std::io::Result<()> {
-            Self::entry(key)?.set_password(value).map_err(std::io::Error::other)
+            Self::entry(key)?
+                .set_password(value)
+                .map_err(std::io::Error::other)
         }
 
         fn delete(&self, key: &str) -> std::io::Result<()> {
@@ -281,14 +283,23 @@ mod android {
                 .z()
             })
             .map_err(io_err)?;
-            if ok { Ok(()) } else { Err(io_err("secure write failed")) }
+            if ok {
+                Ok(())
+            } else {
+                Err(io_err("secure write failed"))
+            }
         }
 
         fn delete(&self, key: &str) -> io::Result<()> {
             with_activity(|env, activity| {
                 let key = env.new_string(key)?;
-                env.call_method(activity, "secureDelete", "(Ljava/lang/String;)Z", &[JValue::Object(&key)])?
-                    .z()
+                env.call_method(
+                    activity,
+                    "secureDelete",
+                    "(Ljava/lang/String;)Z",
+                    &[JValue::Object(&key)],
+                )?
+                .z()
             })
             .map(|_| ())
             .map_err(io_err)
@@ -300,7 +311,8 @@ mod android {
         with_activity(|env, activity| match arg {
             Some(arg) => {
                 let arg = env.new_string(arg)?;
-                env.call_method(activity, method, signature, &[JValue::Object(&arg)])?.z()
+                env.call_method(activity, method, signature, &[JValue::Object(&arg)])?
+                    .z()
             }
             None => env.call_method(activity, method, signature, &[])?.z(),
         })

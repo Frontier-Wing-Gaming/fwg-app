@@ -50,7 +50,11 @@ struct List<T> {
 
 impl<T> Default for List<T> {
     fn default() -> Self {
-        Self { items: Vec::new(), error: None, loading: false }
+        Self {
+            items: Vec::new(),
+            error: None,
+            loading: false,
+        }
     }
 }
 
@@ -61,7 +65,10 @@ impl<T> List<T> {
             _ if self.loading && self.items.is_empty() => (LoadKind::Loading, String::new()),
             _ => (LoadKind::Ready, String::new()),
         };
-        LoadState { kind, message: message.into() }
+        LoadState {
+            kind,
+            message: message.into(),
+        }
     }
 }
 
@@ -157,11 +164,13 @@ impl App {
     pub(super) fn toast(self: &Rc<Self>, message: &str) {
         self.ui(|s| s.set_toast(message.into()));
         let weak = Rc::downgrade(self);
-        self.staff.toast.start(slint::TimerMode::SingleShot, TOAST_TIME, move || {
-            if let Some(app) = weak.upgrade() {
-                app.ui(|s| s.set_toast(SharedString::new()));
-            }
-        });
+        self.staff
+            .toast
+            .start(slint::TimerMode::SingleShot, TOAST_TIME, move || {
+                if let Some(app) = weak.upgrade() {
+                    app.ui(|s| s.set_toast(SharedString::new()));
+                }
+            });
     }
 
     fn confirm(
@@ -320,7 +329,9 @@ impl App {
         }
         form.set_busy(true);
         let session = self.session.clone();
-        let task = self.rt.spawn(async move { session.sign_in(&email, &password).await });
+        let task = self
+            .rt
+            .spawn(async move { session.sign_in(&email, &password).await });
         let app = self.clone();
         let _ = slint::spawn_local(async move {
             let result = task.await;
@@ -352,7 +363,9 @@ impl App {
     // ------------------------------------------------------------ quick actions
 
     fn publish_news(self: &Rc<Self>) {
-        let Some((title, body)) = self.form(|s| (s.get_news_title(), s.get_news_body())) else { return };
+        let Some((title, body)) = self.form(|s| (s.get_news_title(), s.get_news_body())) else {
+            return;
+        };
         let (title, body) = (title.trim().to_owned(), body.trim().to_owned());
         if title.is_empty() || body.is_empty() {
             return;
@@ -417,7 +430,9 @@ impl App {
             return;
         };
         self.staff_ui(|s| s.set_busy(true));
-        let task = self.rt.spawn_blocking(move || prepare_upload(bytes, name, mime));
+        let task = self
+            .rt
+            .spawn_blocking(move || prepare_upload(bytes, name, mime));
         let app = self.clone();
         let _ = slint::spawn_local(async move {
             let result = task.await;
@@ -439,7 +454,9 @@ impl App {
     }
 
     fn upload_image(self: &Rc<Self>) {
-        let Some(upload) = self.staff.picked.borrow().clone() else { return };
+        let Some(upload) = self.staff.picked.borrow().clone() else {
+            return;
+        };
         let caption = self.form(|s| s.get_gallery_caption()).unwrap_or_default();
         let title = match caption.trim() {
             "" => "Community upload".to_owned(),
@@ -461,15 +478,30 @@ impl App {
 
     fn add_staff(self: &Rc<Self>) {
         let Some((name, email, password, role)) = self.form(|s| {
-            (s.get_staff_name(), s.get_staff_email(), s.get_staff_password(), s.get_staff_role())
+            (
+                s.get_staff_name(),
+                s.get_staff_email(),
+                s.get_staff_password(),
+                s.get_staff_role(),
+            )
         }) else {
             return;
         };
-        let role = if role == "admin" { StaffRole::Admin } else { StaffRole::Editor };
-        let (name, email, password) =
-            (name.trim().to_owned(), email.trim().to_owned(), password.to_string());
+        let role = if role == "admin" {
+            StaffRole::Admin
+        } else {
+            StaffRole::Editor
+        };
+        let (name, email, password) = (
+            name.trim().to_owned(),
+            email.trim().to_owned(),
+            password.to_string(),
+        );
         self.staff_request(
-            move |api, token| async move { api.create_staff(&token, &name, &email, &password, role).await },
+            move |api, token| async move {
+                api.create_staff(&token, &name, &email, &password, role)
+                    .await
+            },
             |app, _| {
                 app.staff_ui(|s| {
                     s.set_staff_name(SharedString::new());
@@ -483,7 +515,11 @@ impl App {
 
     fn change_password(self: &Rc<Self>) {
         let Some((current, new, confirm)) = self.form(|s| {
-            (s.get_current_password(), s.get_new_password(), s.get_confirm_password())
+            (
+                s.get_current_password(),
+                s.get_new_password(),
+                s.get_confirm_password(),
+            )
         }) else {
             return;
         };
@@ -524,7 +560,9 @@ impl App {
                     list.loading = true;
                 }
                 self.render_list(key);
-                let Some(token) = self.session.token() else { return self.after_staff_request() };
+                let Some(token) = self.session.token() else {
+                    return self.after_staff_request();
+                };
                 let api = self.api.clone();
                 let task = self.rt.spawn(async move { api.$call(&token).await });
                 let app = self.clone();
@@ -667,7 +705,9 @@ impl App {
 
     fn edit_news(self: &Rc<Self>, id: i64) {
         let list = self.staff.news.borrow();
-        let Some(item) = list.items.iter().find(|n| n.id == id) else { return };
+        let Some(item) = list.items.iter().find(|n| n.id == id) else {
+            return;
+        };
         let (title, body) = (item.title.clone(), item.body.clone());
         drop(list);
         self.staff_ui(|s| {
@@ -678,15 +718,20 @@ impl App {
     }
 
     fn save_news(self: &Rc<Self>) {
-        let Some((id, title, body)) =
-            self.form(|s| (s.get_edit_news_id(), s.get_edit_news_title(), s.get_edit_news_body()))
-        else {
+        let Some((id, title, body)) = self.form(|s| {
+            (
+                s.get_edit_news_id(),
+                s.get_edit_news_title(),
+                s.get_edit_news_body(),
+            )
+        }) else {
             return;
         };
         let (title, body) = (title.trim().to_owned(), body.trim().to_owned());
         self.staff_request(
             move |api, token| async move {
-                api.update_news(&token, i64::from(id), Some(&title), Some(&body), None).await
+                api.update_news(&token, i64::from(id), Some(&title), Some(&body), None)
+                    .await
             },
             |app, _| {
                 app.staff_ui(|s| s.set_edit_news_id(-1));
@@ -716,7 +761,8 @@ impl App {
         self.confirm(question, &title, action, false, move |app| {
             app.staff_request(
                 move |api, token| async move {
-                    api.update_news(&token, id, None, None, Some(!published)).await
+                    api.update_news(&token, id, None, None, Some(!published))
+                        .await
                 },
                 |app, _| app.load_list(ListKey::News),
             );
@@ -724,8 +770,14 @@ impl App {
     }
 
     fn delete_news(self: &Rc<Self>, id: i64) {
-        let Some(title) =
-            self.staff.news.borrow().items.iter().find(|n| n.id == id).map(|n| n.title.clone())
+        let Some(title) = self
+            .staff
+            .news
+            .borrow()
+            .items
+            .iter()
+            .find(|n| n.id == id)
+            .map(|n| n.title.clone())
         else {
             return;
         };
@@ -747,20 +799,34 @@ impl App {
     }
 
     fn toggle_gallery(self: &Rc<Self>, id: i64) {
-        let Some(published) =
-            self.staff.gallery.borrow().items.iter().find(|g| g.id == id).map(|g| g.published)
+        let Some(published) = self
+            .staff
+            .gallery
+            .borrow()
+            .items
+            .iter()
+            .find(|g| g.id == id)
+            .map(|g| g.published)
         else {
             return;
         };
         self.staff_request(
-            move |api, token| async move { api.update_gallery(&token, id, None, Some(!published)).await },
+            move |api, token| async move {
+                api.update_gallery(&token, id, None, Some(!published)).await
+            },
             |app, _| app.load_list(ListKey::Gallery),
         );
     }
 
     fn delete_gallery(self: &Rc<Self>, id: i64) {
-        let Some(title) =
-            self.staff.gallery.borrow().items.iter().find(|g| g.id == id).map(|g| g.title.clone())
+        let Some(title) = self
+            .staff
+            .gallery
+            .borrow()
+            .items
+            .iter()
+            .find(|g| g.id == id)
+            .map(|g| g.title.clone())
         else {
             return;
         };
@@ -803,7 +869,11 @@ impl App {
 
     fn save_staff(self: &Rc<Self>) {
         let Some((id, role, password)) = self.form(|s| {
-            (s.get_edit_staff_id(), s.get_edit_staff_role(), s.get_edit_staff_password())
+            (
+                s.get_edit_staff_id(),
+                s.get_edit_staff_role(),
+                s.get_edit_staff_password(),
+            )
         }) else {
             return;
         };
@@ -815,7 +885,8 @@ impl App {
         let password = (!password.is_empty()).then(|| password.to_string());
         self.staff_request(
             move |api, token| async move {
-                api.update_staff(&token, i64::from(id), Some(role), None, password.as_deref()).await
+                api.update_staff(&token, i64::from(id), Some(role), None, password.as_deref())
+                    .await
             },
             |app, _| {
                 app.staff_ui(|s| {
@@ -856,7 +927,8 @@ impl App {
         self.confirm(title, &text, action, active, move |app| {
             app.staff_request(
                 move |api, token| async move {
-                    api.update_staff(&token, id, None, Some(!active), None).await
+                    api.update_staff(&token, id, None, Some(!active), None)
+                        .await
                 },
                 |app, _| app.load_list(ListKey::Staff),
             );
@@ -928,9 +1000,13 @@ fn prepare_upload(
 ) -> Result<Prepared, String> {
     use image::{ImageDecoder, ImageFormat, ImageReader, imageops::FilterType};
 
-    let format = image::guess_format(&bytes)
-        .map_err(|_| "That file is not an image the website accepts (JPG, PNG, WebP or GIF).".to_owned())?;
-    if !matches!(format, ImageFormat::Jpeg | ImageFormat::Png | ImageFormat::WebP | ImageFormat::Gif) {
+    let format = image::guess_format(&bytes).map_err(|_| {
+        "That file is not an image the website accepts (JPG, PNG, WebP or GIF).".to_owned()
+    })?;
+    if !matches!(
+        format,
+        ImageFormat::Jpeg | ImageFormat::Png | ImageFormat::WebP | ImageFormat::Gif
+    ) {
         return Err("Use a JPG, PNG, WebP, or GIF image.".into());
     }
     let mut decoder = ImageReader::new(Cursor::new(&bytes))
@@ -978,7 +1054,9 @@ fn prepare_upload(
             };
             let mut out = Vec::new();
             let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 88);
-            img.to_rgb8().write_with_encoder(encoder).map_err(|e| e.to_string())?;
+            img.to_rgb8()
+                .write_with_encoder(encoder)
+                .map_err(|e| e.to_string())?;
             if out.len() > UPLOAD_MAX_BYTES {
                 return Err("The image is still over 10 MB after shrinking it.".into());
             }
@@ -996,12 +1074,18 @@ fn prepare_upload(
     let info = format!(
         "{} · {} × {} · {} KB → {} KB",
         upload.file_name.as_deref().unwrap_or("upload"),
-        img.width().min(if too_big { UPLOAD_MAX_EDGE } else { u32::MAX }),
-        img.height().min(if too_big { UPLOAD_MAX_EDGE } else { u32::MAX }),
+        img.width()
+            .min(if too_big { UPLOAD_MAX_EDGE } else { u32::MAX }),
+        img.height()
+            .min(if too_big { UPLOAD_MAX_EDGE } else { u32::MAX }),
         original_kb,
         upload.bytes.len() / 1024
     );
-    Ok(Prepared { upload, preview, info })
+    Ok(Prepared {
+        upload,
+        preview,
+        info,
+    })
 }
 
 #[cfg(test)]

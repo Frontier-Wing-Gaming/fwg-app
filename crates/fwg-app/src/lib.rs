@@ -68,7 +68,11 @@ extern "system" fn Java_network_frontierwinggaming_app_MainActivity_nativePushRe
 ) {
     let token = java_string(&mut env, &token);
     let error = java_string(&mut env, &error);
-    app::post_os_event(app::OsEvent::PushToken { token, error, silent: silent != 0 });
+    app::post_os_event(app::OsEvent::PushToken {
+        token,
+        error,
+        silent: silent != 0,
+    });
 }
 
 /// `MainActivity.nativeImagePicked(bytes, name, mime, error)`: the photo picker's result.
@@ -83,11 +87,20 @@ extern "system" fn Java_network_frontierwinggaming_app_MainActivity_nativeImageP
     mime: jni::objects::JString,
     error: jni::objects::JString,
 ) {
-    let bytes = if bytes.is_null() { None } else { env.convert_byte_array(&bytes).ok() };
+    let bytes = if bytes.is_null() {
+        None
+    } else {
+        env.convert_byte_array(&bytes).ok()
+    };
     let name = java_string(&mut env, &name);
     let mime = java_string(&mut env, &mime);
     let error = java_string(&mut env, &error);
-    app::post_os_event(app::OsEvent::ImagePicked { bytes, name, mime, error });
+    app::post_os_event(app::OsEvent::ImagePicked {
+        bytes,
+        name,
+        mime,
+        error,
+    });
 }
 
 #[cfg(target_os = "android")]
@@ -133,7 +146,8 @@ pub fn run() -> Result<(), slint::PlatformError> {
         ui.window().set_maximized(true);
     }
     ui.global::<Fonts>().set_mono(platform::MONO_FONT.into());
-    ui.global::<AppState>().set_back_key(platform::handles_back_key());
+    ui.global::<AppState>()
+        .set_back_key(platform::handles_back_key());
 
     let data = platform::data_dir();
     let store: Arc<dyn KeyValueStore> = match FileStore::new(data.join("store")) {
@@ -145,7 +159,14 @@ pub fn run() -> Result<(), slint::PlatformError> {
     let images =
         images::ImageLoader::new(api.http().clone(), rt.handle().clone(), data.join("images"));
     let session = fwg_core::Session::restore(api.clone(), platform::secure_store(&data));
-    let app = app::App::new(&ui, rt.handle().clone(), api, session, Cache::new(store), images);
+    let app = app::App::new(
+        &ui,
+        rt.handle().clone(),
+        api,
+        session,
+        Cache::new(store),
+        images,
+    );
     app.start();
     #[cfg(target_os = "android")]
     android_a11y::install(&ui);
