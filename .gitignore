@@ -15,3 +15,4 @@ credentials.json
 /dist
 /e2e/wlpointer/target
 /e2e-out
+__pycache__/
