@@ -1,0 +1,31 @@
+// Colours and type from the Expo app's src/constants/theme.ts.
+
+export enum ServerLed { online, offline, unknown, unlisted, community, hosted, inactive }
+
+export global Palette {
+    out property <color> ink: #060a10;
+    out property <color> panel: #0d141e;
+    out property <color> panel-raised: #131d29;
+    out property <color> border: #263444;
+    out property <color> text: #f5f8fc;
+    out property <color> muted: #93a4b8;
+    out property <color> orange: #ff5a1f;
+    out property <color> gold: #ffb020;
+    out property <color> cyan: #42d9ff;
+    out property <color> green: #35d07f;
+    out property <color> red: #ff4d5f;
+
+    public pure function led(state: ServerLed) -> color {
+        if state == ServerLed.online { return green; }
+        if state == ServerLed.offline { return red; }
+        if state == ServerLed.unlisted { return gold; }
+        if state == ServerLed.community { return cyan; }
+        if state == ServerLed.hosted { return orange; }
+        return muted;
+    }
+}
+
+export global Fonts {
+    // Set per platform from Rust.
+    in property <string> mono: "Consolas";
+}

@@ -1,0 +1,14 @@
+/target
+
+# Android (Gradle) build output and machine-specific files
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/.kotlin/
+*.keystore
+*.jks
+/android/keystore.properties
+credentials.json
+/android/app/google-services.json
+/android/local.ps1

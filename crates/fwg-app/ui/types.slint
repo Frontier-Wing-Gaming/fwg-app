@@ -1,0 +1,397 @@
+// Data the Rust side pushes into the UI, and the callbacks it handles.
+
+import { ServerLed } from "theme.slint";
+export { ServerLed }
+
+export enum Page {
+    home, news, streams, gallery, more, games, server, about,
+    // Staff area (port of admin.tsx, manage-*.tsx, account-security.tsx).
+    staff, manage-news, manage-gallery, manage-staff, push-history, account,
+    manage-servers, edit-server,
+}
+
+export enum LoadKind { loading, failed, offline, ready }
+
+export struct LoadState {
+    kind: LoadKind,
+    // The error for `failed`, the "Offline copy · updated …" line for `offline`.
+    message: string,
+}
+
+export struct Badge {
+    led: ServerLed,
+    label: string,
+    detail: string,
+}
+
+export struct LinkItem {
+    label: string,
+    url: string,
+}
+
+export enum MdKind { paragraph, heading, bullet, quote }
+
+export struct MdBlock {
+    kind: MdKind,
+    text: styled-text,
+    // Same text without markup; sizes the block (StyledText does not report wrapped height).
+    plain: string,
+    // 800 when the block has bold or code spans (wider than regular text), else 400.
+    measure-weight: int,
+}
+
+export struct NewsCard {
+    date: string,
+    title: string,
+    blocks: [MdBlock],
+}
+
+export struct StreamRow {
+    name: string,
+    line: string,
+    live: bool,
+    url: string,
+}
+
+export struct GalleryTile {
+    title: string,
+    picture: image,
+    has-picture: bool,
+}
+
+export struct GalleryRow {
+    left: GalleryTile,
+    right: GalleryTile,
+    has-right: bool,
+}
+
+export struct ModeRow {
+    name: string,
+    slug: string,
+    url: string,
+    badge: Badge,
+    connect: string,
+}
+
+export struct GameCard {
+    accent: color,
+    eyebrow: string,
+    title: string,
+    description: string,
+    // Several modes of one game shown in one card.
+    grouped: bool,
+    modes-label: string,
+    modes: [ModeRow],
+    // Single cards: where a tap goes (server page when `slug` is set, else `url`).
+    slug: string,
+    url: string,
+    has-badge: bool,
+    badge: Badge,
+    connect: string,
+}
+
+export struct Stats {
+    show: bool,
+    online: string,
+    players: string,
+}
+
+export struct Step {
+    no: string,
+    text: string,
+}
+
+export struct ServerView {
+    found: bool,
+    state: LoadState,
+    title: string,
+    eyebrow: string,
+    has-banner: bool,
+    banner: image,
+    description: string,
+    operator: string,
+    accent: color,
+    hosted: bool,
+    badge: Badge,
+    players: string,
+    map: string,
+    connect: string,
+    can-launch: bool,
+    share-label: string,
+    no-address: string,
+    community-text: string,
+    notice: string,
+    pack-show: bool,
+    pack-name: string,
+    // "v2.0.1  ·  Minecraft 1.21.1  ·  NeoForge  ·  291 mods"
+    pack-chips: string,
+    pack-url: string,
+    join: [Step],
+    rules: [string],
+    operator-notes: string,
+    callout-title: string,
+    callout-text: string,
+    siblings-label: string,
+    siblings: [ModeRow],
+    links: [LinkItem],
+}
+
+export struct StaffCard {
+    role: string,
+    name: string,
+    bio: string,
+    initials: string,
+    avatar: image,
+    has-avatar: bool,
+}
+
+export struct AdminNewsRow {
+    id: int,
+    status: string,
+    title: string,
+    preview: string,
+    published: bool,
+}
+
+export struct AdminGalleryRow {
+    id: int,
+    status: string,
+    title: string,
+    published: bool,
+    picture: image,
+    has-picture: bool,
+}
+
+export struct StaffAccountRow {
+    id: int,
+    label: string,
+    name: string,
+    email: string,
+    active: bool,
+}
+
+export struct PushRow {
+    label: string,
+    title: string,
+    body: string,
+    meta: string,
+}
+
+// Staff area. Form fields are two-way bound to the inputs; Rust reads them on submit and clears
+// them on success.
+export global StaffState {
+    in property <bool> signed-in;
+    in property <string> name;
+    in property <bool> is-admin; // admin or owner
+    in property <bool> is-owner;
+    in property <string> session-notice;
+    in property <bool> busy;
+
+    in-out property <string> email;
+    in-out property <string> password;
+
+    in-out property <string> news-title;
+    in-out property <string> news-body;
+
+    in-out property <string> push-title;
+    in-out property <string> push-body;
+    in-out property <string> push-route: "/news";
+
+    in-out property <string> gallery-caption;
+    in property <bool> has-image;
+    in property <image> image-preview;
+    in property <string> image-info;
+
+    in-out property <string> staff-name;
+    in-out property <string> staff-email;
+    in-out property <string> staff-password;
+    in-out property <string> staff-role: "editor";
+
+    in-out property <string> current-password;
+    in-out property <string> new-password;
+    in-out property <string> confirm-password;
+
+    in property <LoadState> news-state;
+    in property <[AdminNewsRow]> news;
+    in-out property <int> edit-news-id: -1;
+    in-out property <string> edit-news-title;
+    in-out property <string> edit-news-body;
+
+    in property <LoadState> gallery-state;
+    in property <[AdminGalleryRow]> gallery;
+
+    in property <LoadState> staff-state;
+    in property <[StaffAccountRow]> staff;
+    in-out property <int> edit-staff-id: -1;
+    in property <string> edit-staff-name;
+    in-out property <string> edit-staff-role;
+    in-out property <string> edit-staff-password;
+
+    in property <LoadState> push-state;
+    in property <[PushRow]> push;
+
+    callback sign-in();
+    callback sign-out();
+    callback dismiss-notice();
+    callback publish-news();
+    callback send-push();
+    callback pick-image();
+    callback upload-image();
+    callback add-staff();
+    callback change-password();
+    // "news", "gallery", "staff", "push"
+    callback reload(string);
+    callback edit-news(int);
+    callback save-news();
+    callback toggle-news(int);
+    callback delete-news(int);
+    callback toggle-gallery(int);
+    callback delete-gallery(int);
+    callback edit-staff(int);
+    callback save-staff();
+    callback toggle-staff(int);
+    callback check-receipts();
+}
+
+export struct ServerRow {
+    slug: string,
+    title: string,
+    // "ADDED BY STAFF", "EDITED" or "DEFAULTS".
+    badge: string,
+    edited: bool,
+    inactive: bool,
+    address: string,
+    meta: string,
+}
+
+export struct Choice {
+    value: string,
+    label: string,
+    // Server types only: the usual ports, used as placeholders for a new server.
+    port: string,
+    query: string,
+}
+
+// The add/edit server form (port of manage-servers.tsx). Numbers stay text so the website can
+// validate exactly what was typed.
+export struct ServerForm {
+    active: bool,
+    server-type: string,
+    slug: string,
+    name: string,
+    variant: string,
+    game: string,
+    operator: string,
+    genre: string,
+    accent: string,
+    url: string,
+    image: string,
+    order: string,
+    description: string,
+    host: string,
+    port: string,
+    query-port: string,
+    connect: string,
+    join: string,
+    rules: string,
+    notes: string,
+    mods-url: string,
+    discord-channel: string,
+    modpack: string,
+    modpack-manual: string,
+    dl-url: string,
+    dl-name: string,
+    dl-version: string,
+    dl-minecraft: string,
+    dl-loader: string,
+    dl-mods: string,
+    callout-title: string,
+    callout-text: string,
+}
+
+// Game servers (owners and admins). Choices for types, packs and groups come from the website.
+export global ServerState {
+    in property <LoadState> state;
+    in property <[ServerRow]> items;
+    in property <bool> can-create;
+
+    in-out property <ServerForm> form;
+    in property <string> title;
+    in property <bool> creating;
+    // Every field is editable (new or staff-added servers); file servers only allow overrides.
+    in property <bool> full;
+    in property <bool> can-delete;
+    in property <bool> can-reset;
+    in property <string> source-hint;
+    in-out property <string> port-hint;
+    in-out property <string> query-hint;
+    in property <[Choice]> types;
+    in property <[Choice]> packs;
+    in property <[Choice]> groups;
+
+    callback reload();
+    callback open(string);
+    callback create();
+    callback save();
+    callback delete();
+    callback reset();
+    // "#4f8fe8" → colour for the swatch; transparent when invalid.
+    pure callback accent-color(string) -> color;
+}
+
+export global AppState {
+    in-out property <Page> page: Page.home;
+    // False on Android 13+, where back (button or gesture) arrives through MainActivity's
+    // OnBackInvokedCallback instead; handling the key too would go back twice.
+    in property <bool> back-key: true;
+
+    in property <Stats> stats;
+    in property <string> home-online: "● Online";
+    in property <string> home-players: "Open to all";
+
+    in property <LoadState> news-state;
+    in property <[NewsCard]> news;
+
+    in property <LoadState> streams-state;
+    in property <[StreamRow]> streams;
+    in property <string> streams-eyebrow;
+
+    in property <LoadState> gallery-state;
+    in property <[GalleryRow]> gallery;
+    in property <bool> gallery-empty;
+
+    in property <LoadState> games-state;
+    in property <[GameCard]> hosted;
+    in property <[GameCard]> operated;
+    in property <[GameCard]> community;
+
+    in property <ServerView> server;
+
+    in property <LoadState> about-state;
+    in property <string> about-intro;
+    in property <[StaffCard]> staff;
+
+    in property <string> more-notice;
+
+    // Short message shown above the tab bar for a few seconds (staff action results).
+    in property <string> toast;
+
+    // Confirmation sheet for destructive or important actions.
+    in property <bool> confirm-show;
+    in property <string> confirm-title;
+    in property <string> confirm-text;
+    in property <string> confirm-action;
+    in property <bool> confirm-destructive;
+    callback confirm-accept();
+    callback confirm-cancel();
+
+    callback navigate(Page);
+    callback back();
+    callback open-server(string);
+    callback open-url(string);
+    // Resource key: "news", "streams", "gallery", "games", "about".
+    callback retry(string);
+    callback launch-server();
+    callback share-address();
+    callback enable-notifications();
+}

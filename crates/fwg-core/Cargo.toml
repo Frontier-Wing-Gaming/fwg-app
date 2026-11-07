@@ -1,0 +1,25 @@
+[package]
+name = "fwg-core"
+description = "Platform-independent core of the Frontier Gaming Network app: API client, models, cache and staff session."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# rustls + webpki roots: no OpenSSL, and the same TLS stack on Windows, Android and iOS.
+reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls-webpki-roots"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+indexmap = { version = "2", features = ["serde"] }
+thiserror = "2"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+
+# Desktop dev builds also trust the OS certificate store, so HTTPS works behind antivirus TLS
+# scanning (e.g. Norton Web Shield) or corporate proxies. Phones use the bundled roots only.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }
+mockito = "1"
+tempfile = "3"

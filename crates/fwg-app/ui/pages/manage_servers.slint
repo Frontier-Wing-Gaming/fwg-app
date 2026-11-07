@@ -1,0 +1,400 @@
+// Game servers for owners and admins (port of the Expo manage-servers.tsx).
+//
+// Wrapped hints sit directly in a card's layout (Slint 1.18 mis-measures wrapped text in nested
+// layouts), so optional groups of fields are separate cards or one `if` per element.
+
+import { Palette } from "../theme.slint";
+import { AppState, StaffState, ServerState } from "../types.slint";
+import {
+    Screen, Card, H2, Body, Eyebrow, Mono, PrimaryButton, ResourceBanner, Field, Chip,
+    SmallButton, ButtonKind,
+} from "../widgets.slint";
+
+component Hint inherits Text {
+    color: Palette.muted;
+    font-size: 13px;
+    wrap: word-wrap;
+}
+
+component Label inherits Text {
+    color: Palette.muted;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+}
+
+component Badge inherits Rectangle {
+    in property <string> text;
+    in property <color> ink: Palette.muted;
+    border-color: root.ink;
+    border-width: 1px;
+    border-radius: 6px;
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        padding-top: 3px;
+        padding-bottom: 3px;
+        Text {
+            text: root.text;
+            color: root.ink;
+            font-size: 11px;
+            font-weight: 800;
+        }
+    }
+}
+
+// A labelled field for the two-column rows (no wrapped text inside).
+component Column inherits VerticalLayout {
+    in property <string> label;
+    spacing: 6px;
+    horizontal-stretch: 1;
+    Label { text: root.label; }
+    @children
+}
+
+export component ManageServersPage inherits Screen {
+    title: "Game servers";
+    eyebrow: "STAFF CONTENT";
+    action-text: "Close";
+    action => { AppState.back(); }
+
+    if !StaffState.is-admin: Card {
+        Body { text: "Owner or administrator access is required to edit game servers."; }
+    }
+    if StaffState.is-admin: Body { text: "Changes show on the website and in the app right away."; }
+    if StaffState.is-admin && ServerState.can-create: PrimaryButton {
+        text: "+ Add server";
+        clicked => { ServerState.create(); }
+    }
+    if StaffState.is-admin: ResourceBanner {
+        state: ServerState.state;
+        retry => { ServerState.reload(); }
+    }
+    for item in ServerState.items: Card {
+        tappable: true;
+        trailing: "›";
+        clicked => { ServerState.open(item.slug); }
+        HorizontalLayout {
+            spacing: 6px;
+            Badge {
+                text: item.badge;
+                ink: item.edited ? Palette.green : Palette.muted;
+            }
+            if item.inactive: Badge { text: "INACTIVE"; ink: Palette.gold; }
+            Rectangle { horizontal-stretch: 1; }
+        }
+        H2 { text: item.title; }
+        Mono { text: item.address; }
+        if item.meta != "": Hint { text: item.meta; }
+    }
+}
+
+export component EditServerPage inherits Screen {
+    title: ServerState.title;
+    eyebrow: ServerState.creating ? "NEW GAME SERVER" : "EDIT GAME SERVER";
+    action-text: "Cancel";
+    action => { AppState.back(); }
+
+    property <bool> hosted: ServerState.form.server-type != "none";
+    property <bool> minecraft: ServerState.full && ServerState.form.server-type == "minecraft";
+
+    Card {
+        Label { text: "VISIBILITY"; }
+        HorizontalLayout {
+            spacing: 6px;
+            Chip {
+                text: "Active";
+                selected: ServerState.form.active;
+                clicked => { ServerState.form.active = true; }
+            }
+            Chip {
+                text: "Hidden";
+                selected: !ServerState.form.active;
+                clicked => { ServerState.form.active = false; }
+            }
+        }
+        Hint {
+            text: ServerState.form.active
+                ? "Shown on the website and in the app."
+                : "Hidden, with status checks stopped. Its page says it is offline; every setting is kept.";
+        }
+    }
+
+    if ServerState.creating: Card {
+        Label { text: "SERVER TYPE"; }
+        for t in ServerState.types: Chip {
+            text: t.label;
+            selected: ServerState.form.server-type == t.value;
+            clicked => {
+                ServerState.form.server-type = t.value;
+                ServerState.port-hint = t.port;
+                ServerState.query-hint = t.query;
+            }
+        }
+        Hint { text: "How players connect and how live status is checked. It cannot be changed later."; }
+        Label { text: "PAGE ADDRESS (OPTIONAL)"; }
+        Field {
+            placeholder: "Made from the name";
+            text <=> ServerState.form.slug;
+        }
+        Hint { text: "/servers/<this>. Letters, numbers, and dashes."; }
+    }
+
+    if ServerState.full: Card {
+        Label { text: "NAME"; }
+        Field {
+            placeholder: "Minecraft";
+            text <=> ServerState.form.name;
+        }
+        Hint { text: "The game."; }
+        Label { text: "MODE (OPTIONAL)"; }
+        Field {
+            placeholder: "Modded";
+            text <=> ServerState.form.variant;
+        }
+        Hint { text: "Shown as \"Minecraft — Modded\"."; }
+        Label { text: "RUN BY (OPTIONAL)"; }
+        Field {
+            placeholder: "Leave empty if FWG hosts it";
+            text <=> ServerState.form.operator;
+        }
+        Hint { text: "Someone else runs it: listed under Community servers."; }
+        Label { text: "GENRE"; }
+        Field {
+            placeholder: "Survival";
+            text <=> ServerState.form.genre;
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            Column {
+                label: "ACCENT COLOUR";
+                Field {
+                    placeholder: "#4f8fe8";
+                    text <=> ServerState.form.accent;
+                }
+            }
+            VerticalLayout {
+                alignment: end;
+                Rectangle {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 10px;
+                    border-width: 1px;
+                    border-color: Palette.border;
+                    background: ServerState.accent-color(ServerState.form.accent);
+                }
+            }
+            Column {
+                label: "SORT ORDER";
+                Field {
+                    placeholder: "1000";
+                    input-type: number;
+                    text <=> ServerState.form.order;
+                }
+            }
+        }
+        Hint { text: "Lower sort order comes first."; }
+        Label { text: "OFFICIAL GAME SITE"; }
+        Field {
+            placeholder: "https://…";
+            text <=> ServerState.form.url;
+        }
+        Label { text: "BANNER IMAGE (OPTIONAL)"; }
+        Field {
+            placeholder: "images/rust-banner.png";
+            text <=> ServerState.form.image;
+        }
+        Hint { text: "A file already in public/assets/images/ on the website."; }
+    }
+
+    if ServerState.full && ServerState.groups.length > 1: Card {
+        Label { text: "SHOW ON THE SERVERS PAGE"; }
+        for g in ServerState.groups: Chip {
+            text: g.label;
+            selected: ServerState.form.game == g.value;
+            clicked => { ServerState.form.game = g.value; }
+        }
+    }
+
+    if !ServerState.full && ServerState.source-hint != "": Card {
+        Hint { text: ServerState.source-hint; }
+    }
+
+    Card {
+        Label { text: "DESCRIPTION"; }
+        Field {
+            placeholder: "What players will find here";
+            multiline: true;
+            min-area: 96px;
+            text <=> ServerState.form.description;
+        }
+    }
+
+    if hosted: Card {
+        Label { text: "HOST"; }
+        Field {
+            placeholder: "play.example.com or 203.0.113.10";
+            text <=> ServerState.form.host;
+        }
+        Hint { text: "Leave empty to show \"Address posted in Discord\"."; }
+        HorizontalLayout {
+            spacing: 8px;
+            Column {
+                label: "GAME PORT";
+                Field {
+                    placeholder: ServerState.port-hint;
+                    input-type: number;
+                    text <=> ServerState.form.port;
+                }
+            }
+            Column {
+                label: "QUERY PORT";
+                Field {
+                    placeholder: ServerState.query-hint;
+                    input-type: number;
+                    text <=> ServerState.form.query-port;
+                }
+            }
+        }
+        if ServerState.creating: Hint { text: "Empty ports use the usual ones for this type."; }
+        Label { text: "DISPLAY ADDRESS"; }
+        Field {
+            placeholder: "Optional, shown instead of host:port";
+            text <=> ServerState.form.connect;
+        }
+    }
+    if !hosted: Card {
+        Body { text: "Community group: there is no FWG-hosted address to set."; }
+    }
+
+    if minecraft: Card {
+        H2 { text: "Modpack"; }
+        if ServerState.packs.length > 1: Label { text: "PACKWIZ PACK"; }
+        for p in ServerState.packs: Chip {
+            text: p.label;
+            selected: ServerState.form.modpack == p.value;
+            clicked => { ServerState.form.modpack = p.value; }
+        }
+        if ServerState.form.modpack != "": Label { text: "CURSEFORGE-ONLY MODS (ONE PER LINE)"; }
+        if ServerState.form.modpack != "": Field {
+            placeholder: "Mod name";
+            multiline: true;
+            min-area: 96px;
+            text <=> ServerState.form.modpack-manual;
+        }
+        if ServerState.form.modpack == "": Hint {
+            text: "Or a ready-made zip (e.g. a CurseForge export). Copy it into packs/ on the website first, then enter /packs/<file>.zip.";
+        }
+        if ServerState.form.modpack == "": Label { text: "ZIP DOWNLOAD"; }
+        if ServerState.form.modpack == "": Field {
+            placeholder: "/packs/MyPack-V1.zip";
+            text <=> ServerState.form.dl-url;
+        }
+        if ServerState.form.modpack == "" && ServerState.form.dl-url != "": HorizontalLayout {
+            spacing: 8px;
+            Column {
+                label: "PACK NAME";
+                Field { text <=> ServerState.form.dl-name; }
+            }
+            Column {
+                label: "VERSION";
+                Field { text <=> ServerState.form.dl-version; }
+            }
+        }
+        if ServerState.form.modpack == "" && ServerState.form.dl-url != "": HorizontalLayout {
+            spacing: 8px;
+            Column {
+                label: "MINECRAFT";
+                Field {
+                    placeholder: "1.20.1";
+                    text <=> ServerState.form.dl-minecraft;
+                }
+            }
+            Column {
+                label: "LOADER";
+                Field {
+                    placeholder: "Forge 47";
+                    text <=> ServerState.form.dl-loader;
+                }
+            }
+            Column {
+                label: "MODS";
+                Field {
+                    input-type: number;
+                    text <=> ServerState.form.dl-mods;
+                }
+            }
+        }
+    }
+
+    Card {
+        Label { text: "HOW TO JOIN (ONE STEP PER LINE)"; }
+        Field {
+            placeholder: "Open the game…";
+            multiline: true;
+            min-area: 96px;
+            text <=> ServerState.form.join;
+        }
+        Label { text: "SERVER RULES (ONE PER LINE)"; }
+        Field {
+            placeholder: "Be respectful…";
+            multiline: true;
+            min-area: 96px;
+            text <=> ServerState.form.rules;
+        }
+        Label { text: "NOTES"; }
+        Field {
+            placeholder: "Operator notes";
+            multiline: true;
+            min-area: 96px;
+            text <=> ServerState.form.notes;
+        }
+    }
+
+    Card {
+        Label { text: "MOD COLLECTION LINK"; }
+        Field {
+            placeholder: "https://…";
+            text <=> ServerState.form.mods-url;
+        }
+        Label { text: "DISCORD CHANNEL LINK"; }
+        Field {
+            placeholder: "https://discord.com/channels/…";
+            text <=> ServerState.form.discord-channel;
+        }
+    }
+
+    if ServerState.full: Card {
+        Label { text: "HIGHLIGHT BOX TITLE (OPTIONAL)"; }
+        Field {
+            placeholder: "See something?";
+            text <=> ServerState.form.callout-title;
+        }
+        Label { text: "HIGHLIGHT BOX TEXT (OPTIONAL)"; }
+        Field {
+            placeholder: "How to report a player…";
+            multiline: true;
+            min-area: 96px;
+            text <=> ServerState.form.callout-text;
+        }
+        Hint { text: "A box on the server page, e.g. how to report a player. Leave empty for none."; }
+    }
+
+    PrimaryButton {
+        text: StaffState.busy ? "Saving…" : ServerState.creating ? "Create server" : "Save server";
+        enabled: !StaffState.busy;
+        clicked => { ServerState.save(); }
+    }
+    if ServerState.can-delete: SmallButton {
+        text: "Delete server";
+        kind: ButtonKind.destructive;
+        enabled: !StaffState.busy;
+        clicked => { ServerState.delete(); }
+    }
+    if ServerState.can-reset: SmallButton {
+        text: "Reset to defaults";
+        kind: ButtonKind.destructive;
+        enabled: !StaffState.busy;
+        clicked => { ServerState.reset(); }
+    }
+}

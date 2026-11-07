@@ -1,0 +1,96 @@
+import { Palette } from "../theme.slint";
+import { AppState, Page } from "../types.slint";
+import { Screen, Card, H2, Body, Eyebrow, PrimaryButton, GhostButton } from "../widgets.slint";
+
+export component HomePage inherits Screen {
+    title: "Frontier Gaming Network";
+    eyebrow: "GAMERS & HOMELABBERS UNITED";
+
+    Rectangle {
+        min-height: 350px;
+        border-radius: 18px;
+        clip: true;
+        Image {
+            width: 100%;
+            height: 100%;
+            source: @image-url("../images/banner.jpg");
+            image-fit: cover;
+            accessible-role: none;
+        }
+        Rectangle { background: #02060c8c; }
+        Image {
+            x: 18px;
+            y: 18px;
+            width: 90px;
+            height: 90px;
+            source: @image-url("../images/logo.png");
+            image-fit: contain;
+            accessible-role: none;
+        }
+        VerticalLayout {
+            padding: 22px;
+            spacing: 8px;
+            alignment: end;
+            Text {
+                text: "Play together. Build together.";
+                color: white;
+                font-size: 29px;
+                font-weight: 900;
+                wrap: word-wrap;
+            }
+            Text {
+                text: "A community for gaming, self-hosting, creators, and the people who keep the servers humming.";
+                color: #dbe8f5;
+                font-size: 15px;
+                wrap: word-wrap;
+            }
+        }
+        Rectangle {
+            border-radius: 18px;
+            border-width: 1px;
+            border-color: Palette.border;
+        }
+    }
+
+    HorizontalLayout {
+        spacing: 12px;
+        Card {
+            horizontal-stretch: 1;
+            Eyebrow { text: "SERVERS ONLINE"; }
+            Text {
+                text: AppState.home-online;
+                color: Palette.green;
+                font-weight: 800;
+                font-size: 16px;
+            }
+        }
+        Card {
+            horizontal-stretch: 1;
+            Eyebrow { text: "PLAYERS IN-GAME"; }
+            Text {
+                text: AppState.home-players;
+                color: Palette.text;
+                font-weight: 800;
+                font-size: 16px;
+            }
+        }
+    }
+
+    Card {
+        H2 { text: "Servers we run"; }
+        Body { text: "Rust, Project Zomboid, Minecraft, FiveM, and more on community hardware. Check who is online and grab connect details."; }
+        GhostButton {
+            text: "Browse servers";
+            clicked => { AppState.navigate(Page.games); }
+        }
+    }
+
+    Card {
+        H2 { text: "Join the conversation"; }
+        Body { text: "Meet players, creators, and homelab enthusiasts in the official Discord."; }
+        PrimaryButton {
+            text: "Open Discord";
+            clicked => { AppState.open-url("https://discord.gg/B75qnDTaME"); }
+        }
+    }
+}

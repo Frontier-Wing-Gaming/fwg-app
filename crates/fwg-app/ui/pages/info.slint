@@ -1,0 +1,136 @@
+// About and More.
+
+import { Palette } from "../theme.slint";
+import { AppState, LoadKind, Page, StaffCard } from "../types.slint";
+import { Screen, Card, H2, Body, Eyebrow, ResourceBanner, PrimaryButton, LinkRow, TextButton } from "../widgets.slint";
+
+// Card-styled row with the avatar outside the layout. The text layout must be a direct child of
+// the row: wrapped text in a layout nested inside another element is measured at the wrong width.
+component StaffRow inherits Rectangle {
+    in property <StaffCard> member;
+
+    background: Palette.panel;
+    border-color: Palette.border;
+    border-width: 1px;
+    border-radius: 16px;
+
+    // Avatars arrive pre-cut to a circle (see images.rs).
+    Image {
+        x: 16px;
+        y: 16px;
+        width: 68px;
+        height: 68px;
+        visible: root.member.has-avatar;
+        source: root.member.avatar;
+        image-fit: cover;
+        accessible-role: none;
+    }
+    Rectangle {
+        visible: !root.member.has-avatar;
+        x: 16px;
+        y: 16px;
+        width: 68px;
+        height: 68px;
+        border-radius: 34px;
+        background: Palette.panel-raised;
+        Text {
+            text: root.member.initials;
+            color: Palette.orange;
+            font-weight: 900;
+            font-size: 18px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+    VerticalLayout {
+        padding: 16px;
+        padding-left: 96px;
+        spacing: 2px;
+        min-height: 100px;
+        Eyebrow { text: root.member.role; }
+        H2 { text: root.member.name; }
+        Body { text: root.member.bio; }
+    }
+}
+export component AboutPage inherits Screen {
+    title: "About us";
+    eyebrow: "GAMERS & HOMELABBERS UNITED";
+    action-text: "Close";
+    action => { AppState.back(); }
+
+    if AppState.about-state.kind != LoadKind.ready: ResourceBanner {
+        state: AppState.about-state;
+        retry => { AppState.retry("about"); }
+    }
+    Card {
+        H2 { text: "Our digital frontier"; }
+        Body { text: AppState.about-intro; }
+    }
+    H2 { text: "Community staff"; }
+    for member in AppState.staff: StaffRow { member: member; }
+}
+export component MorePage inherits Screen {
+    title: "More";
+    eyebrow: "FRONTIER NETWORK";
+
+    Card {
+        gap: 0;
+        H2 { text: "Explore"; }
+        LinkRow {
+            text: "Game servers and connect info";
+            clicked => { AppState.navigate(Page.games); }
+        }
+        LinkRow {
+            text: "About and staff";
+            clicked => { AppState.navigate(Page.about); }
+        }
+    }
+    Card {
+        gap: 0;
+        H2 { text: "Community links"; }
+        LinkRow {
+            text: "Service status";
+            clicked => { AppState.open-url("https://status.frontierwinggaming.network/"); }
+        }
+        LinkRow {
+            text: "Community forum";
+            clicked => { AppState.open-url("https://forum.frontierwinggaming.network/"); }
+        }
+        LinkRow {
+            text: "Official website";
+            clicked => { AppState.open-url("https://www.frontierwinggaming.network/"); }
+        }
+        LinkRow {
+            text: "Cookies & privacy";
+            clicked => { AppState.open-url("https://www.frontierwinggaming.network/privacy"); }
+        }
+        LinkRow {
+            text: "Discord";
+            clicked => { AppState.open-url("https://discord.gg/B75qnDTaME"); }
+        }
+    }
+    Card {
+        H2 { text: "Community notifications"; }
+        Body { text: "Opt in to important network announcements and event updates."; }
+        PrimaryButton {
+            text: "Enable notifications";
+            clicked => { AppState.enable-notifications(); }
+        }
+        if AppState.more-notice != "": Text {
+            text: AppState.more-notice;
+            color: Palette.gold;
+            wrap: word-wrap;
+        }
+    }
+    VerticalLayout {
+        padding: 14px;
+        spacing: 8px;
+        TextButton {
+            text: "Staff administration";
+            color: Palette.muted;
+            font-weight: 700;
+            horizontal-alignment: center;
+            clicked => { AppState.navigate(Page.staff); }
+        }
+    }
+}

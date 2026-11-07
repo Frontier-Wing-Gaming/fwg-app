@@ -1,0 +1,108 @@
+# Builds the signed Play bundle (arm64-v8a, armeabi-v7a, x86_64) and uploads it to the
+# Internal testing track. Run it by hand: Actions → Play release → Run workflow.
+#
+# Secrets live in the "play" environment, which only the main branch can use (see README
+# "Releasing from GitHub Actions"). Nothing here runs for pull requests.
+name: Play release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: Play versionCode (higher than any build already uploaded)
+        required: true
+        type: number
+      upload:
+        description: Upload to Internal testing (off = only build the bundle)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: play-release
+  cancel-in-progress: false
+
+env:
+  NDK_VERSION: 28.2.13676358
+  ABIS: arm64-v8a,armeabi-v7a,x86_64
+
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04
+    environment: play
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+
+      - name: Install NDK and Skia build tools
+        run: |
+          sdkmanager --install "ndk;${NDK_VERSION}" "platforms;android-36" > /dev/null
+          echo "ANDROID_NDK=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+          # 32-bit ARM Skia is built from source: ninja, plus libclang >= the NDK's clang (19).
+          sudo apt-get update -q
+          sudo apt-get install -y -q ninja-build libclang-19-dev
+          echo "LIBCLANG_PATH=/usr/lib/llvm-19/lib" >> "$GITHUB_ENV"
+
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          # The source-built armv7 Skia lives in target/; keep it between runs.
+          key: android-ndk-${{ env.NDK_VERSION }}
+          cache-on-failure: true
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      - name: Write signing and Firebase files
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          KEYSTORE_PROPERTIES: ${{ secrets.KEYSTORE_PROPERTIES }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          umask 077
+          printf '%s' "$UPLOAD_KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+          printf '%s\n' "$KEYSTORE_PROPERTIES" > android/keystore.properties
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+
+      - name: Build bundle
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ inputs.version_code }}
+        run: ./gradlew bundleRelease "-Pfwg.abis=${ABIS}" "-Pfwg.versionCode=${VERSION_CODE}" --console=plain
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: app-release-${{ inputs.version_code }}
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload to Internal testing
+        if: inputs.upload
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: network.frontierwinggaming.app
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+
+      - name: Remove signing files
+        if: always()
+        run: rm -f android/upload-keystore.jks android/keystore.properties android/app/google-services.json

@@ -1,0 +1,402 @@
+// Staff area: sign in, quick actions, and the manage screens (port of the Expo admin.tsx,
+// manage-news/gallery/staff/push.tsx and account-security.tsx).
+
+import { Palette } from "../theme.slint";
+import { AppState, StaffState, Page } from "../types.slint";
+import {
+    Screen, Card, H2, Body, Eyebrow, PrimaryButton, LinkRow, TextButton, ResourceBanner,
+    Field, Chip, SmallButton, ButtonKind, RoundedImage,
+} from "../widgets.slint";
+
+component Hint inherits Text {
+    color: Palette.muted;
+    font-size: 13px;
+    wrap: word-wrap;
+}
+
+export component StaffPage inherits Screen {
+    title: "Staff administration";
+    eyebrow: StaffState.signed-in ? "SIGNED IN AS " + StaffState.name.to-uppercase() : "AUTHORIZED STAFF ONLY";
+    action-text: "Close";
+    action => { AppState.back(); }
+
+    // ---------------------------------------------------------------- signed out
+    if !StaffState.signed-in && StaffState.session-notice != "": Card {
+        H2 { text: "Session ended"; }
+        Body { text: StaffState.session-notice; }
+        TextButton {
+            text: "Dismiss";
+            font-weight: 800;
+            clicked => { StaffState.dismiss-notice(); }
+        }
+    }
+    if !StaffState.signed-in: Card {
+        H2 { text: "Staff sign in"; }
+        Field {
+            placeholder: "Email";
+            text <=> StaffState.email;
+        }
+        Field {
+            placeholder: "Password";
+            input-type: password;
+            text <=> StaffState.password;
+            accepted => { StaffState.sign-in(); }
+        }
+        PrimaryButton {
+            text: StaffState.busy ? "Signing in…" : "Sign in";
+            enabled: !StaffState.busy && StaffState.email != "" && StaffState.password != "";
+            clicked => { StaffState.sign-in(); }
+        }
+    }
+
+    // ---------------------------------------------------------------- signed in
+    if StaffState.signed-in: Card {
+        gap: 0;
+        Eyebrow { text: "MANAGE EXISTING CONTENT"; }
+        LinkRow {
+            text: "News and announcements";
+            clicked => { AppState.navigate(Page.manage-news); }
+        }
+        LinkRow {
+            text: "Gallery items";
+            clicked => { AppState.navigate(Page.manage-gallery); }
+        }
+        if StaffState.is-owner: LinkRow {
+            text: "Staff accounts";
+            clicked => { AppState.navigate(Page.manage-staff); }
+        }
+        if StaffState.is-admin: LinkRow {
+            text: "Notification history";
+            clicked => { AppState.navigate(Page.push-history); }
+        }
+        if StaffState.is-admin: LinkRow {
+            text: "Game servers";
+            clicked => { AppState.navigate(Page.manage-servers); }
+        }
+        LinkRow {
+            text: "Password and security";
+            clicked => { AppState.navigate(Page.account); }
+        }
+    }
+
+    if StaffState.signed-in: Card {
+        Eyebrow { text: "NEWS"; }
+        H2 { text: "Publish announcement"; }
+        Field {
+            placeholder: "Headline";
+            text <=> StaffState.news-title;
+        }
+        Field {
+            placeholder: "Announcement (Markdown: **bold**, [links](https://…), - bullets)";
+            multiline: true;
+            text <=> StaffState.news-body;
+        }
+        PrimaryButton {
+            text: "Publish news";
+            enabled: !StaffState.busy && StaffState.news-title != "" && StaffState.news-body != "";
+            clicked => { StaffState.publish-news(); }
+        }
+    }
+
+    if StaffState.signed-in && StaffState.is-admin: Card {
+        Eyebrow { text: "PUSH NOTIFICATION"; }
+        H2 { text: "Notify the community"; }
+        Field {
+            placeholder: "Notification title";
+            text <=> StaffState.push-title;
+        }
+        Field {
+            placeholder: "Short message";
+            multiline: true;
+            min-area: 84px;
+            text <=> StaffState.push-body;
+        }
+        Body { text: "Open when tapped"; }
+        HorizontalLayout {
+            spacing: 6px;
+            Chip { text: "news"; selected: StaffState.push-route == "/news"; clicked => { StaffState.push-route = "/news"; } }
+            Chip { text: "streams"; selected: StaffState.push-route == "/streams"; clicked => { StaffState.push-route = "/streams"; } }
+            Chip { text: "gallery"; selected: StaffState.push-route == "/gallery"; clicked => { StaffState.push-route = "/gallery"; } }
+        }
+        HorizontalLayout {
+            spacing: 6px;
+            Chip { text: "games"; selected: StaffState.push-route == "/games"; clicked => { StaffState.push-route = "/games"; } }
+            Chip { text: "about"; selected: StaffState.push-route == "/about"; clicked => { StaffState.push-route = "/about"; } }
+            Chip { text: "more"; selected: StaffState.push-route == "/more"; clicked => { StaffState.push-route = "/more"; } }
+        }
+        PrimaryButton {
+            text: "Send notification";
+            enabled: !StaffState.busy && StaffState.push-title != "" && StaffState.push-body != "";
+            clicked => { StaffState.send-push(); }
+        }
+    }
+
+    if StaffState.signed-in: Card {
+        Eyebrow { text: "GALLERY"; }
+        H2 { text: "Add community image"; }
+        Field {
+            placeholder: "Caption";
+            text <=> StaffState.gallery-caption;
+        }
+        SmallButton {
+            text: StaffState.has-image ? "Choose a different image" : "Choose an image";
+            clicked => { StaffState.pick-image(); }
+        }
+        if StaffState.has-image: RoundedImage {
+            height: 200px;
+            border-radius: 10px;
+            source: StaffState.image-preview;
+        }
+        if StaffState.has-image: Hint { text: StaffState.image-info; }
+        PrimaryButton {
+            text: "Publish to gallery";
+            enabled: !StaffState.busy && StaffState.has-image;
+            clicked => { StaffState.upload-image(); }
+        }
+    }
+
+    if StaffState.signed-in && StaffState.is-owner: Card {
+        Eyebrow { text: "OWNER CONTROLS"; }
+        H2 { text: "Add staff account"; }
+        Field {
+            placeholder: "Display name";
+            text <=> StaffState.staff-name;
+        }
+        Field {
+            placeholder: "Email";
+            text <=> StaffState.staff-email;
+        }
+        Field {
+            placeholder: "Temporary password (12+ characters)";
+            input-type: password;
+            text <=> StaffState.staff-password;
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            Chip { text: "editor"; selected: StaffState.staff-role == "editor"; clicked => { StaffState.staff-role = "editor"; } }
+            Chip { text: "admin"; selected: StaffState.staff-role == "admin"; clicked => { StaffState.staff-role = "admin"; } }
+        }
+        PrimaryButton {
+            text: "Create staff account";
+            enabled: !StaffState.busy && StaffState.staff-name != "" && StaffState.staff-email != ""
+                && StaffState.staff-password.character-count >= 12;
+            clicked => { StaffState.add-staff(); }
+        }
+    }
+
+    if StaffState.signed-in: HorizontalLayout {
+        alignment: center;
+        padding: 6px;
+        TextButton {
+            text: "Sign out";
+            color: Palette.muted;
+            clicked => { StaffState.sign-out(); }
+        }
+    }
+}
+
+export component ManageNewsPage inherits Screen {
+    title: "Manage news";
+    eyebrow: "STAFF CONTENT";
+    action-text: "Close";
+    action => { AppState.back(); }
+
+    if StaffState.edit-news-id >= 0: Card {
+        H2 { text: "Edit announcement"; }
+        Field {
+            placeholder: "Headline";
+            text <=> StaffState.edit-news-title;
+        }
+        Field {
+            placeholder: "Announcement";
+            multiline: true;
+            min-area: 150px;
+            text <=> StaffState.edit-news-body;
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            SmallButton {
+                text: "Cancel";
+                clicked => { StaffState.edit-news-id = -1; }
+            }
+            SmallButton {
+                text: "Save";
+                kind: ButtonKind.primary;
+                enabled: !StaffState.busy && StaffState.edit-news-title != "" && StaffState.edit-news-body != "";
+                clicked => { StaffState.save-news(); }
+            }
+        }
+    }
+    ResourceBanner {
+        state: StaffState.news-state;
+        retry => { StaffState.reload("news"); }
+    }
+    for item in StaffState.news: Card {
+        Eyebrow { text: item.status; }
+        H2 { text: item.title; }
+        Body { text: item.preview; }
+        HorizontalLayout {
+            spacing: 8px;
+            SmallButton {
+                text: "Edit";
+                clicked => { StaffState.edit-news(item.id); }
+            }
+            SmallButton {
+                text: item.published ? "Unpublish" : "Publish";
+                clicked => { StaffState.toggle-news(item.id); }
+            }
+            SmallButton {
+                text: "Delete";
+                kind: ButtonKind.destructive;
+                clicked => { StaffState.delete-news(item.id); }
+            }
+        }
+    }
+}
+
+export component ManageGalleryPage inherits Screen {
+    title: "Manage gallery";
+    eyebrow: "UPLOADED IMAGES";
+    action-text: "Close";
+    action => { AppState.back(); }
+
+    ResourceBanner {
+        state: StaffState.gallery-state;
+        retry => { StaffState.reload("gallery"); }
+    }
+    for item in StaffState.gallery: Card {
+        RoundedImage {
+            height: 190px;
+            border-radius: 10px;
+            source: item.picture;
+            loaded: item.has-picture;
+        }
+        Eyebrow { text: item.status; }
+        H2 { text: item.title; }
+        HorizontalLayout {
+            spacing: 8px;
+            SmallButton {
+                text: item.published ? "Hide" : "Publish";
+                clicked => { StaffState.toggle-gallery(item.id); }
+            }
+            SmallButton {
+                text: "Delete";
+                kind: ButtonKind.destructive;
+                clicked => { StaffState.delete-gallery(item.id); }
+            }
+        }
+    }
+}
+
+export component ManageStaffPage inherits Screen {
+    title: "Staff accounts";
+    eyebrow: "OWNER CONTROLS";
+    action-text: "Close";
+    action => { AppState.back(); }
+
+    if StaffState.edit-staff-id >= 0: Card {
+        H2 { text: "Edit " + StaffState.edit-staff-name; }
+        HorizontalLayout {
+            spacing: 6px;
+            Chip { text: "editor"; selected: StaffState.edit-staff-role == "editor"; clicked => { StaffState.edit-staff-role = "editor"; } }
+            Chip { text: "admin"; selected: StaffState.edit-staff-role == "admin"; clicked => { StaffState.edit-staff-role = "admin"; } }
+            Chip { text: "owner"; selected: StaffState.edit-staff-role == "owner"; clicked => { StaffState.edit-staff-role = "owner"; } }
+        }
+        Field {
+            placeholder: "New password (optional, 12+ characters)";
+            input-type: password;
+            text <=> StaffState.edit-staff-password;
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            SmallButton {
+                text: "Cancel";
+                clicked => { StaffState.edit-staff-id = -1; }
+            }
+            SmallButton {
+                text: "Save";
+                kind: ButtonKind.primary;
+                enabled: !StaffState.busy && (StaffState.edit-staff-password == ""
+                    || StaffState.edit-staff-password.character-count >= 12);
+                clicked => { StaffState.save-staff(); }
+            }
+        }
+    }
+    ResourceBanner {
+        state: StaffState.staff-state;
+        retry => { StaffState.reload("staff"); }
+    }
+    for item in StaffState.staff: Card {
+        Eyebrow { text: item.label; }
+        H2 { text: item.name; }
+        Body { text: item.email; }
+        HorizontalLayout {
+            spacing: 8px;
+            SmallButton {
+                text: "Edit role/password";
+                clicked => { StaffState.edit-staff(item.id); }
+            }
+            SmallButton {
+                text: item.active ? "Deactivate" : "Reactivate";
+                kind: item.active ? ButtonKind.destructive : ButtonKind.secondary;
+                clicked => { StaffState.toggle-staff(item.id); }
+            }
+        }
+    }
+}
+
+export component PushHistoryPage inherits Screen {
+    title: "Notification history";
+    eyebrow: "DELIVERY MAINTENANCE";
+    action-text: "Close";
+    action => { AppState.back(); }
+
+    PrimaryButton {
+        text: StaffState.busy ? "Checking…" : "Check delivery receipts";
+        enabled: !StaffState.busy;
+        clicked => { StaffState.check-receipts(); }
+    }
+    ResourceBanner {
+        state: StaffState.push-state;
+        retry => { StaffState.reload("push"); }
+    }
+    for item in StaffState.push: Card {
+        Eyebrow { text: item.label; }
+        H2 { text: item.title; }
+        Body { text: item.body; }
+        Hint { text: item.meta; }
+    }
+}
+
+export component AccountPage inherits Screen {
+    title: "Account security";
+    eyebrow: "STAFF PROFILE";
+    action-text: "Close";
+    action => { AppState.back(); }
+
+    Card {
+        H2 { text: "Change password"; }
+        Body { text: "Use at least 12 characters. Changing your password revokes your other signed-in sessions."; }
+        Field {
+            placeholder: "Current password";
+            input-type: password;
+            text <=> StaffState.current-password;
+        }
+        Field {
+            placeholder: "New password";
+            input-type: password;
+            text <=> StaffState.new-password;
+        }
+        Field {
+            placeholder: "Confirm new password";
+            input-type: password;
+            text <=> StaffState.confirm-password;
+        }
+        PrimaryButton {
+            text: StaffState.busy ? "Saving…" : "Change password";
+            enabled: !StaffState.busy && StaffState.current-password != ""
+                && StaffState.new-password.character-count >= 12;
+            clicked => { StaffState.change-password(); }
+        }
+    }
+}

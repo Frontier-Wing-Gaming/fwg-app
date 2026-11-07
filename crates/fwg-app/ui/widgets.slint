@@ -1,0 +1,596 @@
+// Shared building blocks (the Expo app's Screen, Card, ui.* styles, ResourceState, ServerBadge,
+// MarkdownText).
+
+import { ScrollView, Spinner } from "std-widgets.slint";
+import { Palette, Fonts, ServerLed } from "theme.slint";
+import { LoadKind, LoadState, Badge, MdBlock, MdKind, LinkItem } from "types.slint";
+
+export component H2 inherits Text {
+    color: Palette.text;
+    font-size: 20px;
+    font-weight: 800;
+    wrap: word-wrap;
+}
+
+export component Body inherits Text {
+    color: Palette.muted;
+    font-size: 15px;
+    wrap: word-wrap;
+}
+
+// Small uppercase label (ui.label). Pass uppercase text.
+export component Eyebrow inherits Text {
+    color: Palette.cyan;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    wrap: word-wrap;
+}
+
+export component Mono inherits Text {
+    color: Palette.cyan;
+    font-family: Fonts.mono;
+    font-size: 13px;
+    wrap: word-wrap;
+}
+
+export component Card inherits Rectangle {
+    in property <bool> tappable: false;
+    in property <length> pad: 16px;
+    in property <length> gap: 10px;
+    // Coloured strip along the top edge (server telemetry card).
+    in property <brush> stripe: transparent;
+    // Leading decoration (accent bar or status dot) and trailing arrow. They are drawn outside
+    // the layout: Slint 1.18 under-measures wrapped text that shares a HorizontalLayout row, so
+    // card text always sits directly in the vertical layout.
+    in property <bool> has-accent: false;
+    in property <brush> accent: transparent;
+    in property <bool> has-dot: false;
+    in property <brush> dot: transparent;
+    in property <string> trailing;
+    callback clicked;
+
+    property <length> lead: root.has-accent ? 17px : root.has-dot ? 23px : 0;
+
+    background: ta.pressed ? Palette.panel-raised : Palette.panel;
+    border-color: Palette.border;
+    border-width: 1px;
+    border-radius: 16px;
+    clip: true;
+
+    ta := TouchArea {
+        enabled: root.tappable;
+        mouse-cursor: root.tappable ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+    Rectangle {
+        y: 0;
+        height: 3px;
+        background: root.stripe;
+    }
+    if root.has-accent: Rectangle {
+        x: root.pad;
+        y: root.pad;
+        width: 5px;
+        height: parent.height - 2 * root.pad;
+        border-radius: 3px;
+        background: root.accent;
+    }
+    if root.has-dot: Rectangle {
+        x: root.pad;
+        y: (parent.height - self.height) / 2;
+        width: 11px;
+        height: 11px;
+        border-radius: 6px;
+        background: root.dot;
+    }
+    if root.trailing != "": Text {
+        x: parent.width - root.pad - 14px;
+        y: (parent.height - self.height) / 2;
+        text: root.trailing;
+        color: Palette.cyan;
+        font-size: 24px;
+        accessible-role: none;
+    }
+    VerticalLayout {
+        padding: root.pad;
+        padding-left: root.pad + root.lead;
+        padding-right: root.pad + (root.trailing != "" ? 22px : 0);
+        spacing: root.gap;
+        @children
+    }
+}
+
+export component PrimaryButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    callback clicked;
+
+    border-radius: 10px;
+    background: ta.pressed ? Palette.orange.darker(20%) : Palette.orange;
+    opacity: root.enabled ? 1 : 0.45;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { if root.enabled { root.clicked(); } }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 13px;
+        padding-bottom: 13px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: white;
+            font-weight: 900;
+            font-size: 15px;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+        }
+    }
+}
+
+export component GhostButton inherits Rectangle {
+    in property <string> text;
+    callback clicked;
+
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Palette.border;
+    background: ta.pressed ? Palette.panel-raised : transparent;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-action-default => { root.clicked(); }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    HorizontalLayout {
+        padding-top: 13px;
+        padding-bottom: 13px;
+        padding-left: 12px;
+        padding-right: 12px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: Palette.text;
+            font-weight: 900;
+            font-size: 15px;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+// Compact action in a card's button row: secondary (outlined), primary (orange) or destructive.
+export enum ButtonKind { secondary, primary, destructive }
+export component SmallButton inherits Rectangle {
+    in property <string> text;
+    in property <ButtonKind> kind: ButtonKind.secondary;
+    in property <bool> enabled: true;
+    callback clicked;
+
+    horizontal-stretch: 1;
+    border-radius: 8px;
+    border-width: root.kind == ButtonKind.secondary ? 1px : 0;
+    border-color: Palette.border;
+    background: root.kind == ButtonKind.primary ? (ta.pressed ? Palette.orange.darker(20%) : Palette.orange)
+        : root.kind == ButtonKind.destructive ? (ta.pressed ? Palette.red.darker(20%) : Palette.red)
+        : (ta.pressed ? Palette.border : Palette.panel-raised);
+    opacity: root.enabled ? 1 : 0.45;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { if root.enabled { root.clicked(); } }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    HorizontalLayout {
+        padding: 10px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: Palette.text;
+            font-weight: 800;
+            font-size: 14px;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+// Text field in the app's style. `multiline` makes a growing text area.
+export component Field inherits Rectangle {
+    in property <string> placeholder;
+    in-out property <string> text <=> input.text;
+    in property <InputType> input-type: InputType.text;
+    in property <bool> multiline: false;
+    in property <length> min-area: 120px;
+    callback accepted;
+
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: input.has-focus ? Palette.cyan : Palette.border;
+    background: Palette.panel-raised;
+    // Multiline fields grow with their text (the inner layout does not size this Rectangle).
+    height: root.multiline ? max(root.min-area, input.preferred-height + 26px) : 48px;
+    clip: true;
+    accessible-role: text-input;
+    accessible-label: root.placeholder;
+
+    TouchArea {
+        mouse-cursor: MouseCursor.text;
+        clicked => { input.focus(); }
+    }
+    if input.text == "": Text {
+        x: 13px;
+        y: root.multiline ? 13px : (parent.height - self.height) / 2;
+        width: parent.width - 26px;
+        wrap: root.multiline ? word-wrap : no-wrap;
+        overflow: elide;
+        text: root.placeholder;
+        color: Palette.muted;
+        font-size: 15px;
+        accessible-role: none;
+    }
+    VerticalLayout {
+        padding: 13px;
+        alignment: root.multiline ? start : center;
+        input := TextInput {
+            color: Palette.text;
+            font-size: 15px;
+            selection-background-color: Palette.cyan.with-alpha(40%);
+            input-type: root.input-type;
+            single-line: !root.multiline;
+            wrap: root.multiline ? word-wrap : no-wrap;
+            accepted => { root.accepted(); }
+        }
+    }
+}
+
+// One-of-several choice (role, notification target).
+export component Chip inherits Rectangle {
+    in property <string> text;
+    in property <bool> selected;
+    callback clicked;
+
+    horizontal-stretch: 1;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: root.selected ? Palette.cyan : Palette.border;
+    background: root.selected ? Palette.panel-raised : transparent;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-checked: root.selected;
+    accessible-action-default => { root.clicked(); }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    HorizontalLayout {
+        padding-top: 9px;
+        padding-bottom: 9px;
+        padding-left: 4px;
+        padding-right: 4px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.selected ? Palette.cyan : Palette.muted;
+            font-weight: root.selected ? 800 : 400;
+            font-size: 13px;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+// A row inside a card: label, arrow, divider underneath.
+export component LinkRow inherits Rectangle {
+    in property <string> text;
+    in property <string> arrow: "›";
+    callback clicked;
+
+    background: ta.pressed ? Palette.panel-raised : transparent;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-action-default => { root.clicked(); }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    Rectangle {
+        y: parent.height - 1px;
+        height: 1px;
+        background: Palette.border;
+    }
+    HorizontalLayout {
+        padding-top: 14px;
+        padding-bottom: 14px;
+        spacing: 8px;
+        Text {
+            text: root.text;
+            color: Palette.text;
+            font-weight: 700;
+            font-size: 15px;
+            horizontal-stretch: 1;
+            vertical-alignment: center;
+            wrap: word-wrap;
+        }
+        Text {
+            text: root.arrow;
+            color: Palette.cyan;
+            font-size: 20px;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// Tappable text (header actions such as "Close", inline "Retry").
+export component TextButton inherits Text {
+    callback clicked;
+    color: Palette.cyan;
+    font-size: 15px;
+    accessible-role: button;
+    accessible-label: self.text;
+    accessible-action-default => { root.clicked(); }
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component Screen inherits Rectangle {
+    in property <string> title;
+    in property <string> eyebrow;
+    // "Close" / "Back" in the header; empty for tab screens.
+    in property <string> action-text;
+    callback action;
+
+    background: Palette.ink;
+
+    ScrollView {
+        VerticalLayout {
+            // Short pages must not stretch their cards to fill the viewport.
+            alignment: start;
+            padding: 16px;
+            padding-bottom: 34px;
+            spacing: 16px;
+            HorizontalLayout {
+                padding-top: 10px;
+                spacing: 10px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 2px;
+                    if root.eyebrow != "": Text {
+                        text: root.eyebrow;
+                        color: Palette.orange;
+                        font-weight: 900;
+                        letter-spacing: 2px;
+                        font-size: 11px;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: root.title;
+                        color: Palette.text;
+                        font-size: 30px;
+                        font-weight: 900;
+                        letter-spacing: -0.8px;
+                        wrap: word-wrap;
+                        accessible-role: text;
+                    }
+                }
+                if root.action-text != "": VerticalLayout {
+                    alignment: center;
+                    TextButton {
+                        text: root.action-text;
+                        clicked => { root.action(); }
+                    }
+                }
+            }
+            @children
+        }
+    }
+}
+
+// Loading spinner, "Unable to load" card, or "Offline copy" banner. Hide it for `ready`.
+export component ResourceBanner inherits VerticalLayout {
+    in property <LoadState> state;
+    callback retry;
+
+    if root.state.kind == LoadKind.loading: VerticalLayout {
+        padding: 28px;
+        spacing: 10px;
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Spinner {
+                indeterminate: true;
+                width: 32px;
+                height: 32px;
+            }
+        }
+        Body {
+            text: "Loading…";
+            horizontal-alignment: center;
+        }
+    }
+    if root.state.kind == LoadKind.failed: Card {
+        H2 { text: "Unable to load"; }
+        Body { text: root.state.message; }
+        PrimaryButton {
+            text: "Try again";
+            clicked => { root.retry(); }
+        }
+    }
+    if root.state.kind == LoadKind.offline: Rectangle {
+        background: Palette.panel-raised;
+        border-color: Palette.gold;
+        border-width: 1px;
+        border-radius: 10px;
+        HorizontalLayout {
+            padding: 12px;
+            spacing: 8px;
+            Text {
+                text: root.state.message;
+                color: Palette.gold;
+                horizontal-stretch: 1;
+                wrap: word-wrap;
+            }
+            TextButton {
+                text: "Retry";
+                font-weight: 800;
+                clicked => { root.retry(); }
+            }
+        }
+    }
+}
+
+export component ServerBadge inherits HorizontalLayout {
+    in property <Badge> badge;
+    in property <bool> show-detail: false;
+
+    spacing: 8px;
+    alignment: start;
+    accessible-role: text;
+    accessible-label: "Server status: " + root.badge.label + ". " + root.badge.detail;
+
+    VerticalLayout {
+        alignment: center;
+        Rectangle {
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: Palette.led(root.badge.led);
+        }
+    }
+    Text {
+        text: root.badge.label;
+        color: root.badge.led == ServerLed.unknown ? Palette.muted : Palette.text;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 1.2px;
+        vertical-alignment: center;
+    }
+    if root.show-detail: Text {
+        text: root.badge.detail;
+        color: Palette.muted;
+        font-family: Fonts.mono;
+        font-size: 12px;
+        vertical-alignment: center;
+        wrap: word-wrap;
+    }
+}
+
+// Styled text whose height comes from an invisible bold copy of the plain text. In Slint 1.18
+// StyledText does not report its wrapped height to layouts; bold is the widest style used, so
+// the measured box is never shorter than the rendered text.
+component RichText inherits Text {
+    // `text` holds the plain copy that sizes the element; `styled` is what is drawn.
+    in property <styled-text> styled;
+    in property <brush> ink: Palette.muted;
+    callback open-url(string);
+
+    font-size: 15px;
+    font-weight: 800;
+    wrap: word-wrap;
+    // Invisible, but still read by screen readers.
+    color: transparent;
+
+    StyledText {
+        width: parent.width;
+        height: parent.height;
+        text: root.styled;
+        default-color: root.ink;
+        default-font-size: root.font-size;
+        link-color: Palette.cyan;
+        link-clicked(url) => { root.open-url(url); }
+    }
+}
+// One news block. Every block uses the same elements (no `if`): wrapped text inside nested
+// conditional repeaters is measured wrongly by Slint 1.18 layouts.
+component BlockView inherits HorizontalLayout {
+    in property <MdBlock> block;
+    callback open-url(string);
+    property <bool> bullet: root.block.kind == MdKind.bullet;
+    property <bool> quote: root.block.kind == MdKind.quote;
+
+    Text {
+        width: root.bullet ? 16px : 0;
+        text: root.bullet ? "•" : "";
+        color: Palette.orange;
+        font-size: 17px;
+        accessible-role: none;
+    }
+    Rectangle {
+        width: root.quote ? 15px : 0;
+        Rectangle {
+            x: 0;
+            width: root.quote ? 3px : 0;
+            background: Palette.orange;
+        }
+    }
+    RichText {
+        horizontal-stretch: 1;
+        styled: root.block.text;
+        text: root.block.plain;
+        font-weight: root.block.measure-weight;
+        font-size: root.block.kind == MdKind.heading ? 19px : 15px;
+        ink: root.block.kind == MdKind.heading || root.quote ? Palette.text : Palette.muted;
+        open-url(url) => { root.open-url(url); }
+    }
+}
+
+// News post body: blocks from fwg-core's markdown parser, inline styles via StyledText.
+export component Markdown inherits VerticalLayout {
+    in property <[MdBlock]> blocks;
+    callback open-url(string);
+
+    spacing: 10px;
+    for block in root.blocks: BlockView {
+        block: block;
+        open-url(url) => { root.open-url(url); }
+    }
+}
+// Image with rounded corners that fills its box; shows a panel colour until the image arrives.
+export component RoundedImage inherits Rectangle {
+    in property <image> source;
+    in property <bool> loaded: true;
+
+    clip: true;
+    background: Palette.panel-raised;
+    // Always present (not `if`): the rounded clip does not reach into conditional children.
+    Image {
+        width: 100%;
+        height: 100%;
+        visible: root.loaded;
+        source: root.source;
+        image-fit: cover;
+        accessible-role: none;
+    }
+}
+
+export component Section inherits VerticalLayout {
+    in property <string> eyebrow;
+    in property <string> title;
+    in property <string> text;
+    padding-top: 10px;
+    spacing: 6px;
+    Text {
+        text: root.eyebrow;
+        color: Palette.orange;
+        font-weight: 900;
+        letter-spacing: 2px;
+        font-size: 11px;
+    }
+    H2 { text: root.title; }
+    Body { text: root.text; }
+}

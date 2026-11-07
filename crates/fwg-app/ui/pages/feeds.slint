@@ -1,0 +1,109 @@
+// News, Livestreams, Gallery tabs.
+
+import { Palette } from "../theme.slint";
+import { AppState, LoadKind, GalleryTile } from "../types.slint";
+import { Screen, Card, H2, Body, Eyebrow, ResourceBanner, Markdown, RoundedImage } from "../widgets.slint";
+
+export component NewsPage inherits Screen {
+    title: "Community news";
+    eyebrow: "FROM THE NETWORK";
+
+    if AppState.news-state.kind != LoadKind.ready: ResourceBanner {
+        state: AppState.news-state;
+        retry => { AppState.retry("news"); }
+    }
+    if AppState.news-state.kind == LoadKind.ready && AppState.news.length == 0: Card {
+        H2 { text: "No announcements yet"; }
+        Body { text: "Community updates will appear here."; }
+    }
+    for item in AppState.news: Card {
+        Eyebrow { text: item.date; }
+        H2 { text: item.title; }
+        Markdown {
+            blocks: item.blocks;
+            open-url(url) => { AppState.open-url(url); }
+        }
+    }
+}
+
+export component StreamsPage inherits Screen {
+    title: "Livestreams";
+    eyebrow: AppState.streams-eyebrow;
+
+    if AppState.streams-state.kind != LoadKind.ready: ResourceBanner {
+        state: AppState.streams-state;
+        retry => { AppState.retry("streams"); }
+    }
+    for streamer in AppState.streams: Card {
+        tappable: true;
+        accessible-role: button;
+        accessible-label: streamer.name + ", " + streamer.line;
+        clicked => { AppState.open-url(streamer.url); }
+        has-dot: true;
+        dot: streamer.live ? Palette.red : Palette.muted;
+        trailing: "›";
+        gap: 2px;
+        H2 { text: streamer.name; }
+        Body { text: streamer.line; }
+    }
+}
+
+component Tile inherits Rectangle {
+    in property <GalleryTile> tile;
+    // Square image edge; set by the page so the layout never has to derive height from width.
+    in property <length> size;
+    background: Palette.panel;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Palette.border;
+    clip: true;
+    accessible-role: image;
+    accessible-label: root.tile.title;
+    VerticalLayout {
+        RoundedImage {
+            height: root.size;
+            source: root.tile.picture;
+            loaded: root.tile.has-picture;
+        }
+        HorizontalLayout {
+            padding: 10px;
+            Text {
+                text: root.tile.title;
+                color: Palette.text;
+                font-weight: 700;
+                font-size: 15px;
+                overflow: elide;
+            }
+        }
+    }
+}
+
+export component GalleryPage inherits Screen {
+    // Two columns: 16px page padding each side, 10px gap, and room for a desktop scrollbar.
+    property <length> tile-size: max(80px, (root.width - 32px - 10px - 12px) / 2);
+    title: "Community gallery";
+    eyebrow: "SHARED MOMENTS";
+
+    if AppState.gallery-state.kind != LoadKind.ready: ResourceBanner {
+        state: AppState.gallery-state;
+        retry => { AppState.retry("gallery"); }
+    }
+    if AppState.gallery-state.kind == LoadKind.ready && AppState.gallery-empty: Card {
+        H2 { text: "No gallery items yet"; }
+        Body { text: "Shared community moments will appear here."; }
+    }
+    for row in AppState.gallery: HorizontalLayout {
+        spacing: 10px;
+        Tile {
+            horizontal-stretch: 1;
+            tile: row.left;
+            size: root.tile-size;
+        }
+        if row.has-right: Tile {
+            horizontal-stretch: 1;
+            tile: row.right;
+            size: root.tile-size;
+        }
+        if !row.has-right: Rectangle { horizontal-stretch: 1; }
+    }
+}

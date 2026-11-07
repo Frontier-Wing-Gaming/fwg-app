@@ -1,0 +1,441 @@
+// Servers list and server detail.
+
+import { Palette, Fonts } from "../theme.slint";
+import { AppState, LoadKind, GameCard, ModeRow, Page } from "../types.slint";
+import {
+    Screen, Card, H2, Body, Eyebrow, Mono, ResourceBanner, ServerBadge, PrimaryButton, GhostButton,
+    LinkRow, RoundedImage, Section
+} from "../widgets.slint";
+
+component ModeRowView inherits Rectangle {
+    in property <ModeRow> mode;
+    background: ta.pressed ? Palette.panel-raised : transparent;
+    accessible-role: button;
+    accessible-label: root.mode.name;
+    accessible-action-default => { open(); }
+
+    function open() {
+        if root.mode.slug != "" {
+            AppState.open-server(root.mode.slug);
+        } else {
+            AppState.open-url(root.mode.url);
+        }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { open(); }
+    }
+    Rectangle {
+        y: 0;
+        height: 1px;
+        background: Palette.border;
+    }
+    Text {
+        x: parent.width - 14px;
+        y: (parent.height - self.height) / 2;
+        text: "›";
+        color: Palette.cyan;
+        font-size: 24px;
+        accessible-role: none;
+    }
+    VerticalLayout {
+        padding-top: 10px;
+        padding-right: 24px;
+        spacing: 4px;
+        Text {
+            text: root.mode.name;
+            color: Palette.text;
+            font-size: 17px;
+            font-weight: 900;
+            wrap: word-wrap;
+        }
+        ServerBadge { badge: root.mode.badge; }
+        if root.mode.connect != "": Mono { text: root.mode.connect; }
+    }
+}
+
+component GameCardView inherits Card {
+    in property <GameCard> game;
+    tappable: !root.game.grouped;
+    has-accent: true;
+    accent: root.game.accent;
+    trailing: root.game.grouped ? "" : root.game.slug != "" ? "›" : "↗";
+    gap: 4px;
+    accessible-role: button;
+    accessible-label: root.game.title;
+    clicked => {
+        if root.game.slug != "" {
+            AppState.open-server(root.game.slug);
+        } else {
+            AppState.open-url(root.game.url);
+        }
+    }
+
+    HorizontalLayout {
+        spacing: 8px;
+        Eyebrow {
+            text: root.game.eyebrow;
+            color: root.game.accent;
+            wrap: no-wrap;
+            overflow: elide;
+            horizontal-stretch: 1;
+            vertical-alignment: center;
+        }
+        if root.game.grouped: Text {
+            text: root.game.modes-label;
+            color: Palette.muted;
+            font-family: Fonts.mono;
+            font-size: 11px;
+            letter-spacing: 1.2px;
+            vertical-alignment: center;
+        }
+        if !root.game.grouped && root.game.has-badge: ServerBadge { badge: root.game.badge; }
+    }
+    H2 { text: root.game.title; }
+    Body { text: root.game.description; }
+    if !root.game.grouped && root.game.connect != "": Mono { text: root.game.connect; }
+    for mode in root.game.modes: ModeRowView { mode: mode; }
+}
+export component GamesPage inherits Screen {
+    title: "Servers";
+    eyebrow: "WORLDS WE CALL HOME";
+    action-text: "Close";
+    action => { AppState.back(); }
+
+    if AppState.games-state.kind != LoadKind.ready: ResourceBanner {
+        state: AppState.games-state;
+        retry => { AppState.retry("games"); }
+    }
+    if AppState.stats.show: Card {
+        HorizontalLayout {
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 4px;
+                Eyebrow { text: "ONLINE"; }
+                Text {
+                    text: AppState.stats.online;
+                    color: Palette.cyan;
+                    font-family: Fonts.mono;
+                    font-size: 22px;
+                    font-weight: 800;
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 4px;
+                Eyebrow { text: "PLAYERS"; }
+                Text {
+                    text: AppState.stats.players;
+                    color: Palette.cyan;
+                    font-family: Fonts.mono;
+                    font-size: 22px;
+                    font-weight: 800;
+                }
+            }
+        }
+    }
+    for game in AppState.hosted: GameCardView { game: game; }
+
+    if AppState.operated.length > 0: Section {
+        eyebrow: "RUN BY MEMBERS";
+        title: "Community servers";
+        text: "Run and maintained by community members, not hosted by FWG. Ask whoever runs a server about whitelists, resets, and problems.";
+    }
+    for game in AppState.operated: GameCardView { game: game; }
+
+    if AppState.community.length > 0: Section {
+        eyebrow: "FLOWN TOGETHER";
+        title: "Community groups";
+        text: "These games run on official servers. The wing organizes crews through Discord.";
+    }
+    for game in AppState.community: GameCardView { game: game; }
+}
+
+// A wrapped paragraph with a marker in a fixed left column (numbered steps, rule bullets).
+component MarkedRow inherits Rectangle {
+    in property <string> marker;
+    in property <color> marker-color;
+    in property <bool> mono: false;
+    // Draw a ▸ instead of text (the glyph is missing from common UI fonts).
+    in property <bool> triangle: false;
+    in property <string> text;
+    if root.triangle: Path {
+        x: 2px;
+        y: 6px;
+        width: 7px;
+        height: 9px;
+        commands: "M 0 0 L 7 4.5 L 0 9 Z";
+        fill: root.marker-color;
+    }
+    if !root.triangle: Text {
+        x: 0;
+        y: 2px;
+        text: root.marker;
+        color: root.marker-color;
+        font-family: root.mono ? Fonts.mono : "";
+        font-weight: 800;
+        accessible-role: none;
+    }
+    // Explicit width, so the wrapped height is exact (a nested padded layout under-measures it).
+    min-height: body.preferred-height;
+    body := Body {
+        x: 36px;
+        y: 0;
+        width: parent.width - 36px;
+        text: root.text;
+    }
+}
+
+component InfoRow inherits Rectangle {
+    in property <string> key;
+    in property <string> value;
+    Rectangle {
+        y: parent.height - 1px;
+        height: 1px;
+        background: Palette.border;
+    }
+    HorizontalLayout {
+        padding-top: 12px;
+        padding-bottom: 12px;
+        spacing: 10px;
+        Text {
+            text: root.key;
+            color: Palette.muted;
+            font-family: Fonts.mono;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            vertical-alignment: center;
+        }
+        Text {
+            text: root.value;
+            color: Palette.cyan;
+            font-family: Fonts.mono;
+            font-size: 15px;
+            font-weight: 700;
+            horizontal-stretch: 1;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+}
+
+export component ServerPage inherits Screen {
+    property <bool> found: AppState.server.found;
+    title: root.found ? AppState.server.title : "Server";
+    eyebrow: root.found ? AppState.server.eyebrow : "SERVERS";
+    action-text: "Back";
+    action => { AppState.back(); }
+
+    if !root.found && AppState.server.state.kind != LoadKind.ready: ResourceBanner {
+        state: AppState.server.state;
+        retry => { AppState.retry("games"); }
+    }
+    if !root.found && AppState.server.state.kind != LoadKind.loading: Card {
+        H2 { text: "Server not found"; }
+        Body { text: "This server may be switched off for now, retired, or renamed."; }
+    }
+
+    if root.found && AppState.server.has-banner: RoundedImage {
+        height: self.width * 9 / 16;
+        border-radius: 16px;
+        source: AppState.server.banner;
+    }
+    if root.found: Body { text: AppState.server.description; }
+    if root.found && AppState.server.operator != "": Card {
+        Body {
+            text: "Community server run by " + AppState.server.operator + ". It is not hosted by FWG; " + AppState.server.operator + " looks after the world, whitelist, and uptime.";
+            color: Palette.text;
+        }
+    }
+
+    if root.found: Card {
+        stripe: AppState.server.accent;
+        gap: 0;
+        pad: 16px;
+        Rectangle {
+            Rectangle {
+                y: parent.height - 1px;
+                height: 1px;
+                background: Palette.border;
+            }
+            HorizontalLayout {
+                padding-top: 12px;
+                padding-bottom: 12px;
+                Text {
+                    text: "STATUS";
+                    color: Palette.muted;
+                    font-family: Fonts.mono;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 1.5px;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+                ServerBadge {
+                    badge: AppState.server.badge;
+                    alignment: end;
+                }
+            }
+        }
+        if AppState.server.hosted && AppState.server.operator != "": InfoRow {
+            key: "RUN BY";
+            value: AppState.server.operator;
+        }
+        if AppState.server.hosted: InfoRow {
+            key: "PLAYERS";
+            value: AppState.server.players;
+        }
+        if AppState.server.hosted && AppState.server.map != "": InfoRow {
+            key: "MAP / VERSION";
+            value: AppState.server.map;
+        }
+        if AppState.server.hosted && AppState.server.connect != "": VerticalLayout {
+            padding-top: 14px;
+            padding-bottom: 6px;
+            spacing: 10px;
+            Text {
+                text: "CONNECT";
+                color: Palette.muted;
+                font-family: Fonts.mono;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 1.5px;
+            }
+            Rectangle {
+                background: Palette.ink;
+                border-color: Palette.border;
+                border-width: 1px;
+                border-radius: 10px;
+                HorizontalLayout {
+                    padding: 14px;
+                    TextInput {
+                        text: AppState.server.connect;
+                        read-only: true;
+                        color: Palette.cyan;
+                        font-family: Fonts.mono;
+                        font-size: 17px;
+                        wrap: word-wrap;
+                        single-line: false;
+                        accessible-label: "Server address";
+                    }
+                }
+            }
+            HorizontalLayout {
+                spacing: 10px;
+                if AppState.server.can-launch: PrimaryButton {
+                    horizontal-stretch: 1;
+                    text: "Launch & connect";
+                    clicked => { AppState.launch-server(); }
+                }
+                GhostButton {
+                    horizontal-stretch: 1;
+                    text: AppState.server.share-label;
+                    clicked => { AppState.share-address(); }
+                }
+            }
+        }
+        if AppState.server.hosted && AppState.server.connect == "": VerticalLayout {
+            padding-top: 14px;
+            padding-bottom: 6px;
+            spacing: 10px;
+            Body { text: AppState.server.no-address; }
+            PrimaryButton {
+                text: "Get it on Discord";
+                clicked => { AppState.open-url("https://discord.gg/B75qnDTaME"); }
+            }
+        }
+        if !AppState.server.hosted: VerticalLayout {
+            padding-top: 14px;
+            padding-bottom: 6px;
+            spacing: 10px;
+            Body { text: AppState.server.community-text; }
+            PrimaryButton {
+                text: "Find a crew";
+                clicked => { AppState.open-url("https://discord.gg/B75qnDTaME"); }
+            }
+        }
+        if AppState.server.notice != "": Text {
+            text: AppState.server.notice;
+            color: Palette.gold;
+            wrap: word-wrap;
+        }
+    }
+
+    if root.found && AppState.server.pack-show: Card {
+        Eyebrow { text: "MODPACK"; }
+        H2 { text: AppState.server.pack-name; }
+        // One wrapping line rather than chips: Slint layouts have no flex-wrap, and a fixed row of
+        // chips forces horizontal scrolling on narrow phones.
+        if AppState.server.pack-chips != "": Text {
+            text: AppState.server.pack-chips;
+            color: Palette.muted;
+            font-family: Fonts.mono;
+            font-size: 12px;
+            wrap: word-wrap;
+        }
+        Body { text: "This server needs a modpack installed on your PC. The website has the download and step-by-step setup."; }
+        GhostButton {
+            text: "Get the modpack ↗";
+            clicked => { AppState.open-url(AppState.server.pack-url); }
+        }
+    }
+
+    if root.found && AppState.server.join.length > 0: Card {
+        Eyebrow { text: "GET IN"; }
+        H2 { text: "How to join"; }
+        for step in AppState.server.join: MarkedRow {
+            marker: step.no;
+            marker-color: Palette.cyan;
+            mono: true;
+            text: step.text;
+        }
+    }
+
+    if root.found && AppState.server.rules.length > 0: Card {
+        Eyebrow {
+            text: "SERVER RULES";
+            color: Palette.orange;
+        }
+        H2 { text: "Play fair"; }
+        for rule in AppState.server.rules: MarkedRow {
+            triangle: true;
+            marker-color: Palette.orange;
+            text: rule;
+        }
+    }
+
+    if root.found && AppState.server.operator-notes != "": Card {
+        Eyebrow { text: "OPERATOR NOTES"; }
+        Body { text: AppState.server.operator-notes; }
+    }
+
+    if root.found && AppState.server.callout-text != "": Card {
+        background: #ff5a1f12;
+        border-color: #ff5a1f73;
+        Eyebrow {
+            text: AppState.server.callout-title;
+            color: Palette.orange;
+        }
+        Body { text: AppState.server.callout-text; }
+    }
+
+    if root.found && AppState.server.siblings.length > 0: Card {
+        Eyebrow { text: AppState.server.siblings-label; }
+        for sibling in AppState.server.siblings: LinkRow {
+            text: sibling.name;
+            clicked => { AppState.open-server(sibling.slug); }
+        }
+    }
+
+    if root.found: Card {
+        H2 { text: "Links"; }
+        for link in AppState.server.links: LinkRow {
+            text: link.label;
+            arrow: "↗";
+            clicked => { AppState.open-url(link.url); }
+        }
+    }
+}

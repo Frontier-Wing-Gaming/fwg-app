@@ -1,0 +1,202 @@
+import { Palette, Fonts } from "theme.slint";
+import { AppState, Page } from "types.slint";
+import { HomePage } from "pages/home.slint";
+import { NewsPage, StreamsPage, GalleryPage } from "pages/feeds.slint";
+import { GamesPage, ServerPage } from "pages/servers.slint";
+import { AboutPage, MorePage } from "pages/info.slint";
+import {
+    StaffPage, ManageNewsPage, ManageGalleryPage, ManageStaffPage, PushHistoryPage, AccountPage,
+} from "pages/staff.slint";
+import { ManageServersPage, EditServerPage } from "pages/manage_servers.slint";
+import { StaffState, ServerState } from "types.slint";
+import { H2, Body, SmallButton, ButtonKind } from "widgets.slint";
+
+export { AppState, Fonts, Page, StaffState, ServerState }
+
+// Modal confirmation (replaces React Native's Alert.alert for destructive actions).
+component ConfirmSheet inherits Rectangle {
+    width: 100%;
+    height: 100%;
+    background: #000000b0;
+    TouchArea { clicked => { AppState.confirm-cancel(); } }
+    VerticalLayout {
+        alignment: center;
+        padding: 24px;
+        Rectangle {
+            background: Palette.panel;
+            border-color: Palette.border;
+            border-width: 1px;
+            border-radius: 16px;
+            TouchArea { } // swallow taps inside the card
+            VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+                H2 { text: AppState.confirm-title; }
+                Body { text: AppState.confirm-text; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    padding-top: 6px;
+                    SmallButton {
+                        text: "Cancel";
+                        clicked => { AppState.confirm-cancel(); }
+                    }
+                    SmallButton {
+                        text: AppState.confirm-action;
+                        kind: AppState.confirm-destructive ? ButtonKind.destructive : ButtonKind.primary;
+                        clicked => { AppState.confirm-accept(); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component TabButton inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    in property <Page> target;
+    property <bool> active: AppState.page == root.target;
+
+    horizontal-stretch: 1;
+    accessible-role: tab;
+    accessible-label: root.label;
+    accessible-item-selected: root.active;
+    accessible-action-default => { AppState.navigate(root.target); }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { AppState.navigate(root.target); }
+    }
+    VerticalLayout {
+        padding-top: 6px;
+        padding-bottom: 6px;
+        spacing: 2px;
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                width: 22px;
+                height: 22px;
+                colorize: root.active ? Palette.cyan : Palette.muted;
+                accessible-role: none;
+            }
+        }
+        Text {
+            text: root.label;
+            font-size: 11px;
+            font-weight: 700;
+            color: root.active ? Palette.cyan : Palette.muted;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "Frontier Gaming Network";
+    icon: @image-url("images/icon.png");
+    preferred-width: 412px;
+    preferred-height: 860px;
+    min-width: 320px;
+    min-height: 480px;
+    background: Palette.ink;
+    default-font-size: 15px;
+    forward-focus: keys;
+
+    keys := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape || (event.text == Key.Back && AppState.back-key) {
+                AppState.back();
+                return accept;
+            }
+            reject
+        }
+
+        VerticalLayout {
+            padding-top: root.safe-area-insets.top;
+            padding-bottom: root.safe-area-insets.bottom;
+            padding-left: root.safe-area-insets.left;
+            padding-right: root.safe-area-insets.right;
+
+            Rectangle {
+                vertical-stretch: 1;
+                if AppState.page == Page.home: HomePage { }
+                if AppState.page == Page.news: NewsPage { }
+                if AppState.page == Page.streams: StreamsPage { }
+                if AppState.page == Page.gallery: GalleryPage { }
+                if AppState.page == Page.more: MorePage { }
+                if AppState.page == Page.games: GamesPage { }
+                if AppState.page == Page.server: ServerPage { }
+                if AppState.page == Page.about: AboutPage { }
+                if AppState.page == Page.staff: StaffPage { }
+                if AppState.page == Page.manage-news: ManageNewsPage { }
+                if AppState.page == Page.manage-gallery: ManageGalleryPage { }
+                if AppState.page == Page.manage-staff: ManageStaffPage { }
+                if AppState.page == Page.push-history: PushHistoryPage { }
+                if AppState.page == Page.account: AccountPage { }
+                if AppState.page == Page.manage-servers: ManageServersPage { }
+                if AppState.page == Page.edit-server: EditServerPage { }
+
+                if AppState.toast != "": Rectangle {
+                    x: 16px;
+                    width: parent.width - 32px;
+                    y: parent.height - self.height - 12px;
+                    height: toast-text.preferred-height + 24px;
+                    background: Palette.panel-raised;
+                    border-color: Palette.gold;
+                    border-width: 1px;
+                    border-radius: 12px;
+                    toast-text := Text {
+                        x: 14px;
+                        width: parent.width - 28px;
+                        text: AppState.toast;
+                        color: Palette.gold;
+                        font-weight: 700;
+                        wrap: word-wrap;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            Rectangle {
+                background: Palette.panel;
+                Rectangle {
+                    y: 0;
+                    height: 1px;
+                    background: Palette.border;
+                }
+                HorizontalLayout {
+                    padding-bottom: 10px;
+                    padding-top: 4px;
+                    TabButton {
+                        icon: @image-url("icons/home.svg");
+                        label: "Home";
+                        target: Page.home;
+                    }
+                    TabButton {
+                        icon: @image-url("icons/news.svg");
+                        label: "News";
+                        target: Page.news;
+                    }
+                    TabButton {
+                        icon: @image-url("icons/live.svg");
+                        label: "Live";
+                        target: Page.streams;
+                    }
+                    TabButton {
+                        icon: @image-url("icons/gallery.svg");
+                        label: "Gallery";
+                        target: Page.gallery;
+                    }
+                    TabButton {
+                        icon: @image-url("icons/more.svg");
+                        label: "More";
+                        target: Page.more;
+                    }
+                }
+            }
+        }
+
+        if AppState.confirm-show: ConfirmSheet { }
+    }
+}
