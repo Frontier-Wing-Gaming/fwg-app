@@ -86,7 +86,8 @@ class Backend:
 
     def pick_file(self, path):
         """Fill in the standard Windows "Open" dialog that rfd shows."""
-        dialog = Desktop(backend="uia").window(class_name="#32770", top_level_only=False)
+        # Only dialogs of the app itself: CI machines can have other dialogs open.
+        dialog = Desktop(backend="uia").window(class_name="#32770", process=self.proc.pid)
         dialog.wait("visible", timeout=20)
         name = dialog.child_window(auto_id="1148", control_type="Edit")
         name.wait("ready", timeout=10)
