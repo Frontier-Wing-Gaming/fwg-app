@@ -152,7 +152,9 @@ On Linux (and in CI) installing `ninja-build` and `libclang-19-dev` is enough.
 - `ci.yml` runs the `fwg-core` tests on every push and pull request. It uses no secrets.
 - `play-release.yml` builds the signed bundle and uploads it to the Play **Internal testing** track. Run it
   from Actions → Play release → Run workflow and enter the next versionCode (untick the upload option to
-  only build). The bundle is also kept as a run artifact for 30 days.
+  only build). The bundle is also kept as a run artifact for 30 days. The release's "What's new" text
+  (en-US) is the ```` ```text ```` block under **Pending release** in [PLAY_CHANGELOG.md](PLAY_CHANGELOG.md);
+  an upload stops before building if that block is empty or longer than Play's 500 characters.
 
 The release secrets are stored in the repo's `play` environment, which only the `main` branch can use:
 

@@ -5,7 +5,8 @@ release** as changes land. After uploading, move the section to **Submitted rele
 date and track, then start a new pending section.
 
 Play Console limits "What's new" to **500 characters** per language, so keep the copy block short;
-details go in the notes below it.
+details go in the notes below it. The GitHub release workflow uploads the copy block under Pending
+release as the en-US "What's new", and refuses to upload if it is empty or too long.
 
 ## Pending release
 

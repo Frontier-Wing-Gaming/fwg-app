@@ -69,6 +69,29 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
 
+      # The release notes come from the ```text block under "Pending release" in PLAY_CHANGELOG.md.
+      # Checked before the build so a missing or too-long text fails in seconds, not after it.
+      - name: Prepare What's new
+        if: inputs.upload
+        env:
+          LC_ALL: C.UTF-8
+        run: |
+          text=$(awk '/^## Pending release/ { p = 1 } /^## Submitted releases/ { p = 0 }
+                      p && /^```text/ { f = 1; next } f && /^```/ { exit } f' PLAY_CHANGELOG.md)
+          if [ -z "${text//[[:space:]]/}" ]; then
+            echo "::error file=PLAY_CHANGELOG.md::No What's new text under Pending release. Add it, or run with upload off."
+            exit 1
+          fi
+          n=$(printf '%s' "$text" | wc -m)
+          if [ "$n" -gt 500 ]; then
+            echo "::error file=PLAY_CHANGELOG.md::What's new is $n characters; Play allows 500."
+            exit 1
+          fi
+          mkdir -p whatsnew
+          printf '%s' "$text" > whatsnew/whatsnew-en-US
+          echo "What's new ($n/500 characters):"
+          cat whatsnew/whatsnew-en-US
+
       - name: Write signing and Firebase files
         env:
           UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
@@ -102,6 +125,7 @@ jobs:
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
           track: internal
           status: completed
+          whatsNewDirectory: whatsnew
 
       - name: Remove signing files
         if: always()
