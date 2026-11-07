@@ -45,7 +45,8 @@ copyright = "2026 Frontier Wing Gaming"
 license-file = ["../../LICENSE", "0"]
 extended-description = "News, live streams, the gallery and game server status of the Frontier Wing Gaming Network."
 section = "games"
-depends = "$auto"
+# winit loads libxkbcommon at runtime, so dpkg-shlibdeps can't see it.
+depends = "$auto, libxkbcommon0"
 assets = [
     ["target/release/fwg", "usr/bin/", "755"],
     ["../../packaging/linux/network.frontierwinggaming.app.desktop", "usr/share/applications/", "644"],
