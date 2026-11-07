@@ -193,6 +193,9 @@ jobs:
           - `.deb`: Debian, Ubuntu, Mint and others: `sudo apt install ./frontier-gaming-network_*.deb`
           - `.tar.gz`: the plain binary with its icon and `.desktop` file
 
+          Desktop systems normally have everything the AppImage and `.tar.gz` need. If the app doesn't
+          start on a minimal install, add `libxkbcommon-x11-0` (Debian/Ubuntu name).
+
           Check downloads against `SHA256SUMS.txt`.
           NOTES
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \

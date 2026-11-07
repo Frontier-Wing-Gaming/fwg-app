@@ -45,8 +45,11 @@ copyright = "2026 Frontier Wing Gaming"
 license-file = ["../../LICENSE", "0"]
 extended-description = "News, live streams, the gallery and game server status of the Frontier Wing Gaming Network."
 section = "games"
-# winit loads libxkbcommon at runtime, so dpkg-shlibdeps can't see it.
-depends = "$auto, libxkbcommon0"
+# winit loads the X11 and keyboard libraries at runtime (found with LD_DEBUG=libs on a clean
+# Ubuntu), so dpkg-shlibdeps can't see them; xdg-utils opens links. Wayland's libraries are only
+# needed on a Wayland session.
+depends = "$auto, libxkbcommon0, libxkbcommon-x11-0, libx11-6, libx11-xcb1, libxcursor1, libxi6, xdg-utils"
+recommends = "libwayland-client0, libwayland-cursor0"
 assets = [
     ["target/release/fwg", "usr/bin/", "755"],
     ["../../packaging/linux/network.frontierwinggaming.app.desktop", "usr/share/applications/", "644"],
