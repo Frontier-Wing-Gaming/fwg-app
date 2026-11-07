@@ -10,20 +10,34 @@ release as the en-US "What's new", and refuses to upload if it is empty or too l
 
 ## Pending release
 
-Version: **1.4.0**, versionCode **15**  
-Build: GitHub Actions → Play release → Run workflow with versionCode 15 (uploads to Internal
-testing), or locally `.\android\build.ps1 -Release -VersionCode 15`  
-Status: changes pending, not uploaded.
+Version: next after **1.4.0** (bump `version` in `Cargo.toml`), versionCode **16**  
+Build: GitHub Actions → Play release → Run workflow with versionCode 16 (uploads to Internal
+testing), or locally `.\android\build.ps1 -Release -VersionCode 16`  
+Status: nothing pending yet.
 
 ### Copy for Google Play — What's new
 
 Copy only the text inside this block:
 
 ```text
-• TalkBack support: the screen reader can now read every screen, open buttons, tabs and cards, and scroll pages.
 ```
 
 ### Details
+
+## Submitted releases
+
+### 1.4.0 (versionCode 15) — Internal testing
+
+Uploaded to Internal testing on 2026-11-07 by the Play release workflow. Desktop builds are on the
+GitHub release `v1.4.0`.
+
+#### What's new (as submitted)
+
+```text
+• TalkBack support: the screen reader can now read every screen, open buttons, tabs and cards, and scroll pages.
+```
+
+#### Details
 
 User-facing:
 - TalkBack works in the app. The Rust 1.3.0 app showed TalkBack nothing but an empty screen (the
@@ -38,8 +52,6 @@ User-facing:
   button role and label but no action). Text fields expose their content to screen readers
   (never a password's) and can be focused and filled by them. Verified on Windows (UI
   Automation) and Linux (AT-SPI) by the desktop end-to-end tests.
-
-## Submitted releases
 
 ### 1.3.0 (versionCode 14) — live
 
