@@ -34,6 +34,9 @@ jobs:
             libfontconfig1-dev libxkbcommon-dev \
             dbus-x11 gnome-keyring at-spi2-core python3-pyatspi python3-dbus python3-gi python3-pil \
             xvfb xdotool xclip imagemagick sway grim wtype wl-clipboard \
+            xdg-desktop-portal xdg-desktop-portal-gtk \
+            gnome-shell xdg-desktop-portal-gnome pipewire \
+            kwin-wayland xdg-desktop-portal-kde qtwayland5 binutils \
             libxkbcommon-x11-0 fonts-dejavu-core
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
