@@ -45,8 +45,10 @@ User-facing:
   The app now builds an accessibility tree from the UI (`crates/fwg-app/src/android_a11y.rs`,
   AccessKit): labels, roles, buttons, tabs, text fields, and scroll views, so swiping to the next
   item scrolls the page. Checked on the Android 16 emulator with TalkBack 16: touch exploration
-  reads items, double-tap opens them, swipe navigation scrolls the Home page. Not yet checked on a
-  phone. There is no green focus outline (NativeActivity draws the window itself), and text fields
+  reads items, double-tap opens them, swipe navigation scrolls the Home page. Checked again on a
+  Pixel 10 (Android 16) with a local build of 1.4.0: touch exploration, double-tap on buttons,
+  tabs and server cards, swipe navigation scrolling the Home and Live pages, and typing
+  into a staff text field. There is no green focus outline (NativeActivity draws the window itself), and text fields
   don't support reading by character or word yet.
 - Server, stream and staff game-server cards can be activated by screen readers (they had a
   button role and label but no action). Text fields expose their content to screen readers
