@@ -5,7 +5,6 @@ import android.app.NativeActivity
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -16,6 +15,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityManager
 import android.window.OnBackInvokedDispatcher
+import androidx.core.view.WindowCompat
 import com.google.firebase.messaging.FirebaseMessaging
 
 /**
@@ -29,20 +29,13 @@ class MainActivity : NativeActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Draw behind the status and navigation bars; Slint pads the UI with the safe-area insets.
-        // (Deprecated on 35+, where edge-to-edge is the default; still needed for Android 8–14.)
-        @Suppress("DEPRECATION")
-        window.statusBarColor = Color.TRANSPARENT
-        @Suppress("DEPRECATION")
-        window.navigationBarColor = Color.TRANSPARENT
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            @Suppress("DEPRECATION")
-            window.setDecorFitsSystemWindows(false)
-        } else {
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        // Draw behind the status and navigation bars on every Android version (35+ does this by
+        // default); Slint pads the UI with the safe-area insets (system bars and display cutout).
+        // The app is always dark, so the bar icons stay light.
+        WindowCompat.enableEdgeToEdge(window)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
         }
         // Android 13+ delivers back (button or gesture) here instead of as a key event; Rust decides
         // whether that pops a screen, goes Home or leaves the app. Older versions send KEYCODE_BACK

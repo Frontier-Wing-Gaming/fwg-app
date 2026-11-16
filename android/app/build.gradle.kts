@@ -85,6 +85,14 @@ kotlin {
 dependencies {
     implementation(platform("com.google.firebase:firebase-bom:35.1.0"))
     implementation("com.google.firebase:firebase-messaging")
+    // Edge-to-edge without the window APIs Android 15 deprecated (WindowCompat.enableEdgeToEdge).
+    implementation("androidx.core:core:1.18.0")
+    constraints {
+        // Google Play services (under firebase-messaging) still asks for fragment 1.1.0 and
+        // activity 1.0.0, which their developers have marked outdated in Play Console.
+        implementation("androidx.fragment:fragment:1.9.1") { because("Play Console: 1.1.0 is outdated") }
+        implementation("androidx.activity:activity:1.13.0") { because("Play Console: 1.0.0 is outdated") }
+    }
 }
 
 // Firebase reads its settings from string resources (google_app_id, …). The google-services Gradle

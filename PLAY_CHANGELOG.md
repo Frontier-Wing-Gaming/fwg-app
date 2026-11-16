@@ -10,14 +10,49 @@ release as the en-US "What's new", and refuses to upload if it is empty or too l
 
 ## Pending release
 
-Version: **1.5.0**, versionCode **16**  
-Build: GitHub Actions → Play release → Run workflow with versionCode 16 (uploads to Internal
-testing), or locally `.\android\build.ps1 -Release -VersionCode 16`  
+Version: next after **1.5.0** (bump `version` in `Cargo.toml`), versionCode **17**  
+Build: GitHub Actions → Play release → Run workflow with versionCode 17 (uploads to Internal
+testing), or locally `.\android\build.ps1 -Release -VersionCode 17`  
 Status: changes pending, not uploaded.
 
 ### Copy for Google Play — What's new
 
 Copy only the text inside this block:
+
+```text
+• The app now turns to landscape and fills tablet and foldable screens.
+• Updated Android libraries for newer Android versions.
+```
+
+### Details
+
+Play Console's "For your next release" checks on 1.4.0, all addressed:
+- Outdated `androidx.fragment:fragment` 1.1.0 and `androidx.activity:activity` 1.0.0: Google Play
+  services (under firebase-messaging) still asks for them. `android/app/build.gradle.kts` now
+  constrains them to fragment 1.9.1 and activity 1.13.0 (which brings androidx.core 1.18.0).
+  androidx.core 1.19 needs Android Gradle plugin 9.1, so it waits for an AGP upgrade.
+- Edge-to-edge and deprecated edge-to-edge APIs: `MainActivity` no longer sets
+  `window.statusBarColor` / `navigationBarColor`, `setDecorFitsSystemWindows` or
+  `systemUiVisibility`, and `themes.xml` no longer sets `android:statusBarColor` /
+  `android:navigationBarColor`. It calls `WindowCompat.enableEdgeToEdge(window)` (androidx.core)
+  and keeps the bar icons light through `WindowCompat.getInsetsController`. Slint already pads the
+  UI with the system-bar and display-cutout insets. Checked on Android 14 and 16 emulators: content
+  starts below the status bar and the tab bar sits above the gesture bar.
+- Resizability and orientation: the activity is no longer locked to portrait
+  (`AndroidManifest.xml`), so tablets and foldables (where Android 16 ignores the lock anyway)
+  and phones in landscape get the full screen. Checked in landscape on Android 16: the layout
+  fills the width and keeps clear of the camera cutout.
+- Picture-in-picture: not applicable. The app has no video player (Live opens streams in their own
+  apps), so this suggestion is left alone.
+
+## Submitted releases
+
+### 1.5.0 (versionCode 16) — Internal testing
+
+Uploaded to Internal testing on 2026-11-16 by the Play release workflow. Desktop builds are on the
+GitHub release `v1.5.0`.
+
+#### What's new (as submitted)
 
 ```text
 • New RuneScape leaderboard (More → RuneScape leaderboard): RS3 and Old School boards for overall XP, every skill, boss and RS3 quest points, by week, month or all time.
@@ -26,7 +61,7 @@ Copy only the text inside this block:
 • Cleaner Home banner: the small logo in its corner is gone.
 ```
 
-### Details
+#### Details
 
 User-facing:
 - RuneScape leaderboard (`ui/pages/runescape.slint`, `src/app/runescape.rs`,
@@ -43,8 +78,6 @@ User-facing:
   models), cached for offline viewing like the other pages.
 - The Home banner no longer draws the small FWG logo in its top-left corner over the banner
   artwork (`ui/pages/home.slint`); `ui/images/logo.png` is deleted, as nothing else used it.
-
-## Submitted releases
 
 ### 1.4.0 (versionCode 15) — Internal testing
 
