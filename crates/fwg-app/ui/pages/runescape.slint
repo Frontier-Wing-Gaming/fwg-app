@@ -1,0 +1,515 @@
+// RuneScape leaderboard and sign-up (the website's /runescape page), its board picker, member
+// profiles (/runescape/player/ID) and competition standings (/runescape/competition/ID).
+
+import { Palette, Fonts } from "../theme.slint";
+import { AppState, LoadKind, Page, RuneScapeState, RsRow, RsFeedRow, RsCompRow, RsLine } from "../types.slint";
+import { Screen, Card, H2, Body, Eyebrow, ResourceBanner, PrimaryButton, Field, Chip, Section } from "../widgets.slint";
+
+// Tick box with a wrapping label. The box sits outside the layout: wrapped text that shares a
+// HorizontalLayout row is measured at the wrong width (see Card).
+component Consent inherits Rectangle {
+    in-out property <bool> checked;
+    in property <string> text;
+
+    accessible-role: checkbox;
+    accessible-label: root.text;
+    accessible-checked: root.checked;
+    accessible-action-default => { root.checked = !root.checked; }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.checked = !root.checked; }
+    }
+    Rectangle {
+        x: 0;
+        y: 2px;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        border-width: 2px;
+        border-color: root.checked ? Palette.orange : Palette.border;
+        background: root.checked ? Palette.orange : Palette.panel-raised;
+        if root.checked: Text {
+            text: "✓";
+            color: Palette.text;
+            font-weight: 900;
+            font-size: 14px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            accessible-role: none;
+        }
+    }
+    VerticalLayout {
+        padding-left: 34px;
+        Body {
+            text: root.text;
+            accessible-role: none;
+        }
+    }
+}
+
+component Label inherits Text {
+    color: Palette.muted;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 1.2px;
+}
+
+// "IM", "HC", "UIM" or "HC†" next to a name.
+component Badge inherits Rectangle {
+    in property <string> text;
+    property <color> tone: root.text == "HC†" ? Palette.red : root.text == "HC" ? Palette.gold : Palette.muted;
+    border-width: 1px;
+    border-radius: 4px;
+    border-color: root.tone;
+    accessible-role: AccessibleRole.text;
+    accessible-label: root.text == "UIM" ? "Ultimate Ironman" : root.text == "HC" ? "Hardcore Ironman" : root.text == "HC†" ? "Fallen Hardcore Ironman" : "Ironman";
+    HorizontalLayout {
+        padding-left: 5px;
+        padding-right: 5px;
+        padding-top: 1px;
+        padding-bottom: 1px;
+        Text {
+            text: root.text;
+            color: root.tone;
+            font-family: Fonts.mono;
+            font-weight: 800;
+            font-size: 10px;
+            vertical-alignment: center;
+            accessible-role: none;
+        }
+    }
+}
+
+// A ranked player: place, name and badge, value on the right, details underneath. Opens the
+// player's profile when it has an id.
+component PlayerCard inherits Card {
+    in property <RsRow> item;
+    gap: 4px;
+    tappable: root.item.id > 0;
+    trailing: root.item.id > 0 ? "›" : "";
+    clicked => { RuneScapeState.open-player(root.item.id); }
+
+    HorizontalLayout {
+        spacing: 10px;
+        Text {
+            text: root.item.place;
+            min-width: 22px;
+            color: root.item.place == "1" || root.item.place == "2" || root.item.place == "3" ? Palette.gold : Palette.muted;
+            font-family: Fonts.mono;
+            font-weight: 800;
+            font-size: 15px;
+            vertical-alignment: center;
+            accessible-label: "Place " + root.item.place;
+        }
+        Text {
+            text: root.item.name;
+            horizontal-stretch: 1;
+            color: Palette.text;
+            font-weight: 800;
+            font-size: 17px;
+            overflow: elide;
+            vertical-alignment: center;
+        }
+        if root.item.badge != "": VerticalLayout {
+            alignment: center;
+            Badge { text: root.item.badge; }
+        }
+        Text {
+            text: root.item.value;
+            color: root.item.gained ? Palette.green : Palette.text;
+            font-family: Fonts.mono;
+            font-weight: 700;
+            font-size: 14px;
+            vertical-alignment: center;
+        }
+    }
+    if root.item.detail != "": Body {
+        text: root.item.detail;
+        font-size: 13px;
+    }
+}
+
+component FeedCard inherits Card {
+    in property <RsFeedRow> item;
+    gap: 3px;
+    has-accent: true;
+    accent: root.item.kind == "death" ? Palette.red : root.item.kind == "log" ? Palette.cyan : Palette.gold;
+    Text {
+        text: root.item.title;
+        color: Palette.text;
+        font-weight: 700;
+        font-size: 15px;
+        wrap: word-wrap;
+    }
+    Body {
+        text: root.item.detail;
+        font-size: 12px;
+    }
+}
+
+component StatusTag inherits Rectangle {
+    in property <string> status;
+    in property <string> text;
+    property <color> tone: root.status == "running" ? Palette.green : root.status == "upcoming" ? Palette.gold : Palette.muted;
+    border-width: 1px;
+    border-radius: 4px;
+    border-color: root.tone;
+    HorizontalLayout {
+        padding-left: 7px;
+        padding-right: 7px;
+        padding-top: 2px;
+        padding-bottom: 2px;
+        Text {
+            text: root.text;
+            color: root.tone;
+            font-weight: 900;
+            font-size: 10px;
+            letter-spacing: 1.2px;
+        }
+    }
+}
+
+component CompetitionCard inherits Card {
+    in property <RsCompRow> item;
+    gap: 6px;
+    tappable: true;
+    trailing: "›";
+    clicked => { RuneScapeState.open-competition(root.item.id); }
+    HorizontalLayout {
+        alignment: start;
+        StatusTag {
+            status: root.item.status;
+            text: root.item.status-label;
+        }
+    }
+    Text {
+        text: root.item.title;
+        color: Palette.text;
+        font-weight: 800;
+        font-size: 17px;
+        wrap: word-wrap;
+    }
+    Body {
+        text: root.item.detail;
+        font-size: 13px;
+    }
+}
+
+export component RuneScapePage inherits Screen {
+    title: "RuneScape";
+    eyebrow: "WING MEMBERS ON THE HISCORES";
+    action-text: "Close";
+    action => { AppState.back(); }
+
+    Body { text: "Who in the wing is grinding hardest, on RuneScape 3 and Old School. Stats come from the official hiscores once a day."; }
+
+    HorizontalLayout {
+        spacing: 6px;
+        Chip {
+            text: "RuneScape 3";
+            selected: RuneScapeState.game == "rs3";
+            clicked => { RuneScapeState.select("rs3", RuneScapeState.period); }
+        }
+        Chip {
+            text: "Old School";
+            selected: RuneScapeState.game == "osrs";
+            clicked => { RuneScapeState.select("osrs", RuneScapeState.period); }
+        }
+    }
+    // Quest points come from the Adventurer's Log, not snapshots, so they have no period.
+    if RuneScapeState.metric != "quests": HorizontalLayout {
+        spacing: 6px;
+        Chip {
+            text: "This week";
+            selected: RuneScapeState.period == "week";
+            clicked => { RuneScapeState.select(RuneScapeState.game, "week"); }
+        }
+        Chip {
+            text: "This month";
+            selected: RuneScapeState.period == "month";
+            clicked => { RuneScapeState.select(RuneScapeState.game, "month"); }
+        }
+        Chip {
+            text: "All time";
+            selected: RuneScapeState.period == "all";
+            clicked => { RuneScapeState.select(RuneScapeState.game, "all"); }
+        }
+    }
+    Card {
+        gap: 2px;
+        tappable: true;
+        trailing: "›";
+        accessible-role: button;
+        accessible-label: "Board: " + RuneScapeState.metric-label;
+        clicked => { AppState.navigate(Page.runescape-boards); }
+        Label {
+            text: "BOARD";
+            accessible-role: none;
+        }
+        Text {
+            text: RuneScapeState.metric-label;
+            color: Palette.text;
+            font-weight: 800;
+            font-size: 16px;
+            overflow: elide;
+            accessible-role: none;
+        }
+    }
+
+    if RuneScapeState.state.kind != LoadKind.ready: ResourceBanner {
+        state: RuneScapeState.state;
+        retry => { RuneScapeState.reload(); }
+    }
+    if RuneScapeState.state.kind != LoadKind.loading && RuneScapeState.state.kind != LoadKind.failed && RuneScapeState.rows.length == 0: Card {
+        H2 { text: "No one here yet"; }
+        Body { text: RuneScapeState.metric == "overall" ? "No wing members are on the " + RuneScapeState.game-label + " board yet. Sign up below and be the first." : "No wing member has a score on this board yet."; }
+    }
+    for row in RuneScapeState.rows: PlayerCard { item: row; }
+    if RuneScapeState.footnote != "": Body {
+        text: RuneScapeState.footnote;
+        font-size: 13px;
+    }
+
+    if RuneScapeState.competitions.length > 0: Section {
+        eyebrow: "WING EVENTS";
+        title: "Competitions";
+        text: "Skill and boss competitions run by staff. Everyone on that game's board takes part.";
+    }
+    for row in RuneScapeState.competitions: CompetitionCard { item: row; }
+
+    if RuneScapeState.feed.length > 0: Section {
+        eyebrow: "RECENT";
+        title: "Achievements";
+        text: "99s, 200M XP, boss counts, and RuneScape 3 Adventurer's Log drops and quests.";
+    }
+    for row in RuneScapeState.feed: FeedCard { item: row; }
+
+    Card {
+        gap: 12px;
+        Eyebrow { text: "GET ON THE BOARD"; }
+        H2 { text: "Join the leaderboard"; }
+        Body { text: "Add your RuneScape 3 name, your Old School name, or both. Staff check each sign-up, then your stats are tracked once a day. Your RuneScape names and stats are public; your Discord name is only seen by staff."; }
+        Label { text: "DISCORD USERNAME"; }
+        Field {
+            placeholder: "Discord username";
+            text <=> RuneScapeState.discord;
+        }
+        Label { text: "RUNESCAPE 3 NAME"; }
+        Field {
+            placeholder: "RuneScape 3 name (optional)";
+            text <=> RuneScapeState.rs3-name;
+        }
+        Label { text: "OLD SCHOOL NAME"; }
+        Field {
+            placeholder: "Old School name (optional)";
+            text <=> RuneScapeState.osrs-name;
+        }
+        Label { text: "ANYTHING STAFF SHOULD KNOW"; }
+        Field {
+            placeholder: "Optional note";
+            multiline: true;
+            min-area: 84px;
+            text <=> RuneScapeState.message;
+        }
+        Consent {
+            text: "Show my RuneScape names, stats and achievements on the FWG leaderboard (website, app and Discord).";
+            checked <=> RuneScapeState.consent;
+        }
+        PrimaryButton {
+            text: RuneScapeState.busy ? "Checking the hiscores…" : "Sign up";
+            enabled: !RuneScapeState.busy;
+            clicked => { RuneScapeState.sign-up(); }
+        }
+        if RuneScapeState.notice != "": Text {
+            text: RuneScapeState.notice;
+            color: RuneScapeState.notice-error ? Palette.red : Palette.gold;
+            wrap: word-wrap;
+        }
+        Body {
+            text: "To change your names or leave the board, ask staff in Discord.";
+            font-size: 13px;
+        }
+    }
+}
+
+// Every board the chosen game has: Overall, skills, RS3 quest points, bosses and activities.
+export component RuneScapeBoardsPage inherits Screen {
+    title: "Choose a board";
+    eyebrow: RuneScapeState.game == "osrs" ? "OLD SCHOOL" : "RUNESCAPE 3";
+    action-text: "Back";
+    action => { AppState.back(); }
+
+    if RuneScapeState.boards.length == 0: Card {
+        Body { text: "The list of boards appears once the leaderboard has loaded."; }
+    }
+    for choice in RuneScapeState.boards: VerticalLayout {
+        spacing: 6px;
+        if choice.heading != "": Text {
+            text: choice.heading;
+            color: Palette.orange;
+            font-weight: 900;
+            letter-spacing: 2px;
+            font-size: 11px;
+        }
+        Rectangle {
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: choice.selected ? Palette.cyan : Palette.border;
+            background: ta.pressed || choice.selected ? Palette.panel-raised : Palette.panel;
+            accessible-role: button;
+            accessible-label: choice.label;
+            accessible-checked: choice.selected;
+            accessible-action-default => { RuneScapeState.select-board(choice.value); }
+            ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { RuneScapeState.select-board(choice.value); }
+            }
+            HorizontalLayout {
+                padding: 12px;
+                spacing: 8px;
+                Text {
+                    text: choice.label;
+                    horizontal-stretch: 1;
+                    color: choice.selected ? Palette.cyan : Palette.text;
+                    font-weight: choice.selected ? 800 : 600;
+                    font-size: 15px;
+                    overflow: elide;
+                    accessible-role: none;
+                }
+                if choice.selected: Text {
+                    text: "✓";
+                    color: Palette.cyan;
+                    font-weight: 900;
+                    accessible-role: none;
+                }
+            }
+        }
+    }
+}
+
+// A profile line (see RsLine in types.slint).
+component ProfileLine inherits VerticalLayout {
+    in property <RsLine> line;
+    if root.line.kind == "section": VerticalLayout {
+        padding-top: 12px;
+        spacing: 2px;
+        Text {
+            text: root.line.detail;
+            color: Palette.orange;
+            font-weight: 900;
+            letter-spacing: 2px;
+            font-size: 11px;
+            wrap: word-wrap;
+        }
+        H2 { text: root.line.title; }
+    }
+    if root.line.kind == "heading": Text {
+        text: root.line.title;
+        color: Palette.muted;
+        font-weight: 900;
+        letter-spacing: 1.2px;
+        font-size: 11px;
+    }
+    if root.line.kind == "note": Card {
+        has-accent: root.line.highlight;
+        accent: Palette.red;
+        gap: 4px;
+        if root.line.title != "": Text {
+            text: root.line.title;
+            color: Palette.text;
+            font-weight: 800;
+            font-size: 15px;
+            wrap: word-wrap;
+        }
+        if root.line.detail != "": Body {
+            text: root.line.detail;
+            font-size: 13px;
+        }
+    }
+    if root.line.kind == "stat" || root.line.kind == "row": Rectangle {
+        border-radius: 10px;
+        background: Palette.panel;
+        border-width: 1px;
+        border-color: Palette.border;
+        VerticalLayout {
+            padding: 10px;
+            padding-left: 12px;
+            padding-right: 12px;
+            spacing: 2px;
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: root.line.title;
+                    horizontal-stretch: 1;
+                    color: root.line.kind == "stat" ? Palette.muted : Palette.text;
+                    font-weight: root.line.kind == "stat" ? 400 : 700;
+                    font-size: 14px;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: root.line.value;
+                    color: root.line.highlight && root.line.kind == "stat" ? Palette.green : Palette.text;
+                    font-family: Fonts.mono;
+                    font-weight: 700;
+                    font-size: 14px;
+                    vertical-alignment: center;
+                }
+            }
+            if root.line.detail != "": Text {
+                text: root.line.detail;
+                color: root.line.highlight ? Palette.green : Palette.muted;
+                font-size: 12px;
+                wrap: word-wrap;
+            }
+        }
+    }
+}
+
+export component RuneScapePlayerPage inherits Screen {
+    title: RuneScapeState.player-name == "" ? "Player" : RuneScapeState.player-name;
+    eyebrow: "WING MEMBER";
+    action-text: "Back";
+    action => { AppState.back(); }
+
+    if RuneScapeState.player-state.kind != LoadKind.ready: ResourceBanner {
+        state: RuneScapeState.player-state;
+        retry => { RuneScapeState.reload-player(); }
+    }
+    for line in RuneScapeState.player-lines: ProfileLine { line: line; }
+    if RuneScapeState.player-feed.length > 0: Section {
+        eyebrow: "RECENT";
+        title: "Achievements";
+        text: "";
+    }
+    for row in RuneScapeState.player-feed: FeedCard { item: row; }
+}
+
+export component RuneScapeCompetitionPage inherits Screen {
+    title: RuneScapeState.comp-title == "" ? "Competition" : RuneScapeState.comp-title;
+    eyebrow: RuneScapeState.comp-eyebrow;
+    action-text: "Back";
+    action => { AppState.back(); }
+
+    if RuneScapeState.comp-status != "": Card {
+        gap: 6px;
+        HorizontalLayout {
+            alignment: start;
+            StatusTag {
+                status: RuneScapeState.comp-status;
+                text: RuneScapeState.comp-status-label;
+            }
+        }
+        Body { text: RuneScapeState.comp-detail; }
+    }
+    if RuneScapeState.comp-state.kind != LoadKind.ready: ResourceBanner {
+        state: RuneScapeState.comp-state;
+        retry => { RuneScapeState.reload-competition(); }
+    }
+    for row in RuneScapeState.comp-rows: PlayerCard { item: row; }
+    if RuneScapeState.comp-footnote != "": Body {
+        text: RuneScapeState.comp-footnote;
+        font-size: 13px;
+    }
+}

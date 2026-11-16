@@ -8,10 +8,11 @@ import {
     StaffPage, ManageNewsPage, ManageGalleryPage, ManageStaffPage, PushHistoryPage, AccountPage,
 } from "pages/staff.slint";
 import { ManageServersPage, EditServerPage } from "pages/manage_servers.slint";
-import { StaffState, ServerState } from "types.slint";
+import { RuneScapePage, RuneScapeBoardsPage, RuneScapePlayerPage, RuneScapeCompetitionPage } from "pages/runescape.slint";
+import { StaffState, ServerState, RuneScapeState } from "types.slint";
 import { H2, Body, SmallButton, ButtonKind } from "widgets.slint";
 
-export { AppState, Fonts, Page, StaffState, ServerState }
+export { AppState, Fonts, Page, StaffState, ServerState, RuneScapeState }
 
 // Modal confirmation (replaces React Native's Alert.alert for destructive actions).
 component ConfirmSheet inherits Rectangle {
@@ -136,6 +137,10 @@ export component AppWindow inherits Window {
                 if AppState.page == Page.account: AccountPage { }
                 if AppState.page == Page.manage-servers: ManageServersPage { }
                 if AppState.page == Page.edit-server: EditServerPage { }
+                if AppState.page == Page.runescape: RuneScapePage { }
+                if AppState.page == Page.runescape-boards: RuneScapeBoardsPage { }
+                if AppState.page == Page.runescape-player: RuneScapePlayerPage { }
+                if AppState.page == Page.runescape-competition: RuneScapeCompetitionPage { }
 
                 if AppState.toast != "": Rectangle {
                     x: 16px;

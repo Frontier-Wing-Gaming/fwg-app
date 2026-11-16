@@ -16,6 +16,8 @@ use crate::{
     ModeRow, NewsCard, ServerLed, ServerView, Stats, Step, StreamRow,
 };
 
+pub mod runescape;
+
 pub const STATUS_PAGE: &str = "https://status.frontierwinggaming.network/";
 
 fn model<T: Clone + 'static>(items: Vec<T>) -> ModelRc<T> {

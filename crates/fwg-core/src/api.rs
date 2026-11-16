@@ -196,6 +196,53 @@ impl ApiClient {
         self.get("/about.php", None).await
     }
 
+    /// The RuneScape leaderboard for one game, period and board (`overall`, `skill:Attack`,
+    /// `activity:Zulrah`, `quests`).
+    pub async fn runescape(
+        &self,
+        game: RsGame,
+        period: RsPeriod,
+        metric: &str,
+    ) -> Result<RsBoard, ApiError> {
+        let path = format!(
+            "/runescape.php?game={}&period={}&metric={}",
+            game.key(),
+            period.key(),
+            query_escape(metric)
+        );
+        self.get(&path, None).await
+    }
+
+    /// A leaderboard member's public profile.
+    pub async fn runescape_player(&self, id: i64) -> Result<RsProfile, ApiError> {
+        self.get(&format!("/runescape/player.php?id={id}"), None)
+            .await
+    }
+
+    /// Latest achievements across both games.
+    pub async fn runescape_feed(&self, limit: u32) -> Result<Items<RsEvent>, ApiError> {
+        self.get(&format!("/runescape/feed.php?limit={limit}"), None)
+            .await
+    }
+
+    /// Running and upcoming competitions, then recent finished ones.
+    pub async fn runescape_competitions(&self) -> Result<Items<RsCompetition>, ApiError> {
+        self.get("/runescape/competitions.php", None).await
+    }
+
+    /// One competition with its standings.
+    pub async fn runescape_competition(&self, id: i64) -> Result<RsCompetitionDetail, ApiError> {
+        self.get(&format!("/runescape/competitions.php?id={id}"), None)
+            .await
+    }
+
+    /// Asks to join the RuneScape leaderboard; staff approve it on the website.
+    pub async fn runescape_signup(&self, signup: &RsSignup) -> Result<RsSignupResult, ApiError> {
+        let body = serde_json::to_value(signup).map_err(ApiError::Decode)?;
+        self.send(Method::POST, "/runescape/signup.php", body, None)
+            .await
+    }
+
     pub async fn register_push(
         &self,
         push_token: &str,
@@ -456,6 +503,20 @@ fn insert_some<V: serde::Serialize>(target: &mut Value, key: &str, value: Option
     }
 }
 
+/// Percent-encodes a query value (RFC 3986 unreserved characters pass through).
+fn query_escape(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for b in value.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
 /// `https://host/api/v1` → `https://host`.
 pub fn site_root(api_root: &str) -> &str {
     let trimmed = api_root.strip_suffix('/').unwrap_or(api_root);
@@ -483,6 +544,16 @@ mod tests {
         );
         assert_eq!(site_root("https://x.test/api/v1/"), "https://x.test");
         assert_eq!(site_root("https://x.test/other"), "https://x.test/other");
+    }
+
+    #[test]
+    fn query_escape_encodes_reserved_characters() {
+        assert_eq!(query_escape("overall"), "overall");
+        assert_eq!(
+            query_escape("activity:Clue Scrolls (all)"),
+            "activity%3AClue%20Scrolls%20%28all%29"
+        );
+        assert_eq!(query_escape("a&b=c"), "a%26b%3Dc");
     }
 
     #[test]

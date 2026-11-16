@@ -23,6 +23,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use slint::{ComponentHandle, ModelRc, VecModel, Weak};
 use tokio::runtime::Handle;
 
+mod runescape;
 mod staff;
 
 use crate::{
@@ -95,6 +96,7 @@ pub struct App {
     cache: Cache,
     images: Rc<ImageLoader>,
     staff: staff::StaffData,
+    runescape: runescape::RuneScapeData,
 
     news: Slot<Items<NewsItem>>,
     streams: Slot<Items<Streamer>>,
@@ -128,6 +130,7 @@ impl App {
             cache,
             images,
             staff: staff::StaffData::default(),
+            runescape: runescape::RuneScapeData::default(),
             news: Slot::default(),
             streams: Slot::default(),
             gallery: Slot::default(),
@@ -142,6 +145,7 @@ impl App {
         });
         app.bind(ui);
         app.bind_staff(ui);
+        app.bind_runescape(ui);
         app
     }
 
@@ -346,6 +350,10 @@ impl App {
                 self.refresh_servers();
             }
             Page::More => {}
+            Page::Runescape => self.load_runescape(false),
+            Page::RunescapeBoards => {}
+            Page::RunescapePlayer => self.load_rs_player(false),
+            Page::RunescapeCompetition => self.load_rs_competition(false),
             Page::Staff
             | Page::ManageNews
             | Page::ManageGallery

@@ -81,6 +81,10 @@ export component MorePage inherits Screen {
             clicked => { AppState.navigate(Page.games); }
         }
         LinkRow {
+            text: "RuneScape leaderboard";
+            clicked => { AppState.navigate(Page.runescape); }
+        }
+        LinkRow {
             text: "About and staff";
             clicked => { AppState.navigate(Page.about); }
         }

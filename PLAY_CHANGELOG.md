@@ -13,16 +13,36 @@ release as the en-US "What's new", and refuses to upload if it is empty or too l
 Version: next after **1.4.0** (bump `version` in `Cargo.toml`), versionCode **16**  
 Build: GitHub Actions → Play release → Run workflow with versionCode 16 (uploads to Internal
 testing), or locally `.\android\build.ps1 -Release -VersionCode 16`  
-Status: nothing pending yet.
+Status: changes pending, not uploaded.
 
 ### Copy for Google Play — What's new
 
 Copy only the text inside this block:
 
 ```text
+• New RuneScape leaderboard (More → RuneScape leaderboard): RS3 and Old School boards for overall XP, every skill, boss and RS3 quest points, by week, month or all time.
+• Player profiles, wing achievements, Ironman badges and wing competitions.
+• Sign up for the leaderboard right from the app.
+• Cleaner Home banner: the small logo in its corner is gone.
 ```
 
 ### Details
+
+User-facing:
+- RuneScape leaderboard (`ui/pages/runescape.slint`, `src/app/runescape.rs`,
+  `src/view/runescape.rs`), opened from More. It shows the FWG members' RS3 and Old School
+  boards for this week, this month or all time. A board picker switches between Overall, any
+  skill, boss or clue type, and RS3 quest points. Ironman, Hardcore and Ultimate accounts get a
+  badge, and fallen Hardcores are marked.
+- Player profiles: skills, boss kill counts, this week's gains and the RS3 quest tracker.
+- Achievements feed (99s, 120s, 200M XP, boss milestones, RS3 Adventurer's Log) and wing
+  competitions with live standings.
+- Sign-up form for the leaderboard (Discord name plus RS3 and/or OSRS name), which staff
+  approve on the website.
+- Data comes from the website's new `/api/v1/runescape*` endpoints (`fwg-core` API client and
+  models), cached for offline viewing like the other pages.
+- The Home banner no longer draws the small FWG logo in its top-left corner over the banner
+  artwork (`ui/pages/home.slint`); `ui/images/logo.png` is deleted, as nothing else used it.
 
 ## Submitted releases
 

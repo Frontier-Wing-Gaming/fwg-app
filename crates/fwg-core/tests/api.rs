@@ -47,6 +47,181 @@ async fn error_field_becomes_message() {
 }
 
 #[tokio::test]
+async fn runescape_board_and_signup() {
+    use fwg_core::models::{RsGame, RsPeriod, RsSignup};
+    let mut server = Server::new_async().await;
+    // Shape copied from the website's real response.
+    let board = server
+        .mock("GET", "/api/v1/runescape.php")
+        .match_query(Matcher::AllOf(vec![
+            Matcher::UrlEncoded("game".into(), "osrs".into()),
+            Matcher::UrlEncoded("period".into(), "week".into()),
+            Matcher::UrlEncoded("metric".into(), "overall".into()),
+        ]))
+        .with_header("content-type", "application/json")
+        .with_body(
+            r#"{"game":"osrs","period":"week","games":{"rs3":{"label":"RuneScape 3","short":"RS3"}},
+            "periods":{"week":{"label":"This week"}},"updated_at":"2026-11-16T19:19:17Z","items":[
+            {"name":"Le Me","total_level":3232,"total_xp":5800000000,"rank":34,"updated_at":"2026-11-16T19:19:17Z",
+             "gained":1000000,"since":"2026-11-08T19:19:34Z","partial":false,"top_skill":{"name":"Attack","xp":1000000}},
+            {"name":"New One","total_level":40,"total_xp":null,"rank":null,"updated_at":null,
+             "gained":0,"since":null,"partial":true,"top_skill":null}]}"#,
+        )
+        .create_async()
+        .await;
+    let api = client(&server);
+    let b = api
+        .runescape(RsGame::Osrs, RsPeriod::Week, "overall")
+        .await
+        .unwrap();
+    assert_eq!(
+        (b.game, b.period, b.items.len()),
+        (RsGame::Osrs, RsPeriod::Week, 2)
+    );
+    assert_eq!(b.items[0].top_skill.as_ref().unwrap().name, "Attack");
+    assert_eq!(b.items[1].total_xp, None);
+    assert!(b.items[1].partial);
+    board.assert_async().await;
+
+    let signup = server
+        .mock("POST", "/api/v1/runescape/signup.php")
+        .match_body(Matcher::Json(serde_json::json!({
+            "discord":"alice","rs3_name":"","osrs_name":"Lynx Titan","message":"","consent":true
+        })))
+        .with_status(201)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"success":true,"message":"Thanks!","warnings":["We couldn't find it."]}"#)
+        .create_async()
+        .await;
+    let result = api
+        .runescape_signup(&RsSignup {
+            discord: "alice".into(),
+            osrs_name: "Lynx Titan".into(),
+            consent: true,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert!(result.success);
+    assert_eq!(result.warnings.len(), 1);
+    signup.assert_async().await;
+}
+
+#[tokio::test]
+async fn runescape_boards_profile_feed_and_competitions() {
+    use fwg_core::models::{RsCompetitionStatus, RsGame, RsPeriod};
+    let mut server = Server::new_async().await;
+    let api = client(&server);
+    // Shapes copied from the website's real responses.
+    let board = server
+        .mock("GET", "/api/v1/runescape.php")
+        .match_query(Matcher::AllOf(vec![
+            Matcher::UrlEncoded("game".into(), "osrs".into()),
+            Matcher::UrlEncoded("metric".into(), "activity:Clue Scrolls (all)".into()),
+        ]))
+        .with_header("content-type", "application/json")
+        .with_body(
+            r#"{"game":"osrs","period":"all","metric":"activity:Clue Scrolls (all)","metric_label":"Clue Scrolls (all)",
+            "unit":"score","metrics":[{"value":"overall","label":"Overall","group":"Overall"},
+            {"value":"activity:Clue Scrolls (all)","label":"Clue Scrolls (all)","group":"Bosses and activities"}],
+            "updated_at":"2026-11-16T20:21:56Z","items":[{"id":4,"name":"Settled","total_level":2322,"total_xp":442439728,
+            "rank":12,"value":333,"level":null,"unit":"score","updated_at":"2026-11-16T20:21:56Z","gained":null,"since":null,
+            "partial":false,"top_skill":null,"account_type":"ultimate","account_label":"Ultimate Ironman","account_short":"UIM"}]}"#,
+        )
+        .create_async()
+        .await;
+    let b = api
+        .runescape(RsGame::Osrs, RsPeriod::All, "activity:Clue Scrolls (all)")
+        .await
+        .unwrap();
+    assert_eq!((b.unit.as_str(), b.metrics.len()), ("score", 2));
+    assert_eq!(
+        (
+            b.items[0].id,
+            b.items[0].value,
+            b.items[0].account_short.as_str()
+        ),
+        (4, Some(333), "UIM")
+    );
+    board.assert_async().await;
+
+    server
+        .mock("GET", "/api/v1/runescape/player.php?id=2")
+        .with_header("content-type", "application/json")
+        .with_body(
+            r#"{"id":2,"name":"Le Me","games":[{"game":"rs3","label":"RuneScape 3","name":"Le Me","updated_at":"2026-11-16T20:22:15Z",
+            "account_type":null,"account_label":"Regular account","account_short":"","death":null,"total_level":3232,
+            "total_xp":5800000000,"rank":34,"week_gained":0,"week_since":"2026-11-16T20:17:01Z",
+            "skills":[{"name":"Attack","level":120,"xp":200000000,"rank":12,"week_gained":0}],
+            "activities":[{"name":"Bounty Hunters","score":275,"rank":3000,"week_gained":0}],
+            "history":[{"date":"2026-11-16","total_xp":5800000000,"total_level":3232}],
+            "quests":{"qp":476,"qp_max":476,"completed":360,"started":1,"total":366,"quests":[]}},
+            {"game":"osrs","label":"Old School","name":"Fallen","account_type":"hardcore_fallen","account_label":"Fallen Hardcore",
+            "account_short":"HC†","death":{"text":"lost Hardcore Ironman status","detail":"Lumbridge","at":null},"updated_at":null}],
+            "events":[{"id":9,"member_id":2,"name":"Le Me","game":"rs3","kind":"log","text":"found a dragon helm",
+            "detail":"After killing a Abyssal lord, it dropped a dragon helm.","happened_at":"2026-11-11T16:52:43Z"}]}"#,
+        )
+        .create_async()
+        .await;
+    let p = api.runescape_player(2).await.unwrap();
+    assert_eq!(p.games[0].quests.as_ref().unwrap().completed, 360);
+    assert_eq!(p.games[0].skills[0].level, Some(120));
+    assert_eq!(
+        p.games[1].death.as_ref().unwrap().detail.as_deref(),
+        Some("Lumbridge")
+    );
+    assert_eq!(p.games[1].total_xp, None);
+    assert_eq!(p.events[0].kind, "log");
+
+    server
+        .mock("GET", "/api/v1/runescape/feed.php?limit=10")
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"items":[{"id":1,"member_id":4,"name":"Settled","game":"osrs","kind":"milestone","text":"reached 2,500 Zulrah","detail":null,"happened_at":"2026-11-16T20:21:56Z"}]}"#)
+        .create_async()
+        .await;
+    assert_eq!(
+        api.runescape_feed(10).await.unwrap().items[0].game,
+        RsGame::Osrs
+    );
+
+    server
+        .mock("GET", "/api/v1/runescape/competitions.php")
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"items":[{"id":2,"title":"Boss of the Week: Zulrah","game":"osrs","game_label":"Old School","metric":"activity:Zulrah","metric_label":"Zulrah","unit":"score","starts_at":"2026-11-16T21:22:21Z","ends_at":"2026-11-23T20:22:21Z","status":"upcoming"}]}"#)
+        .create_async()
+        .await;
+    assert_eq!(
+        api.runescape_competitions().await.unwrap().items[0].status,
+        RsCompetitionStatus::Upcoming
+    );
+
+    server
+        .mock("GET", "/api/v1/runescape/competitions.php?id=1")
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"id":1,"title":"Test SOTW: Attack","game":"osrs","game_label":"Old School","metric":"skill:Attack","metric_label":"Attack","unit":"xp","starts_at":"2026-11-16T20:21:22Z","ends_at":"2026-11-16T20:21:22Z","status":"ended","items":[{"id":4,"name":"Settled","gained":123456,"start":1,"end":123457,"level":99,"updated_at":"2026-11-16T20:22:22Z","account_type":"ultimate","account_label":"Ultimate Ironman","account_short":"UIM"},{"id":5,"name":"Late","gained":null,"start":null,"end":null,"level":null,"updated_at":null,"account_type":null,"account_label":"Regular account","account_short":""}]}"#)
+        .create_async()
+        .await;
+    let c = api.runescape_competition(1).await.unwrap();
+    assert_eq!(c.competition.status, RsCompetitionStatus::Ended);
+    assert_eq!((c.items[0].gained, c.items[1].gained), (Some(123456), None));
+
+    server
+        .mock("GET", "/api/v1/runescape/player.php?id=999")
+        .with_status(404)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"error":"Player not found."}"#)
+        .create_async()
+        .await;
+    assert!(
+        api.runescape_player(999)
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("Player not found")
+    );
+}
+
+#[tokio::test]
 async fn non_json_failure_and_html_success() {
     let mut server = Server::new_async().await;
     server

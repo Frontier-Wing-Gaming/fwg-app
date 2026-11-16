@@ -17,6 +17,7 @@ from email.parser import BytesParser
 from email.policy import HTTP
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs
 
 EMAIL = "e2e@example.com"
 PASSWORD = "correct-horse-battery"
@@ -28,7 +29,7 @@ OUT = Path(sys.argv[2] if len(sys.argv) > 2 else ".")
 OUT.mkdir(parents=True, exist_ok=True)
 ROOT = f"http://127.0.0.1:{PORT}"
 
-state = {"logins": [], "logouts": 0, "uploads": [], "requests": []}
+state = {"logins": [], "logouts": 0, "uploads": [], "requests": [], "rs_signups": []}
 lock = threading.Lock()
 
 
@@ -87,7 +88,52 @@ PUBLIC = {
                    "about": {"intro": "E2E intro.", "body": ["E2E body."]},
                    "staff": [{"name": "E2E Tester", "role": "Owner", "group": "Leadership",
                               "bio": "Writes tests.", "initials": "ET"}]},
+    "/runescape/feed.php": {"items": [
+        {"id": 1, "member_id": 7, "name": "E2E Wingman", "game": "rs3", "kind": "milestone",
+         "text": "reached 99 Mining", "detail": None, "happened_at": "2026-11-15T06:17:00Z"}]},
+    "/runescape/competitions.php": {"items": [
+        {"id": 3, "title": "E2E Skill of the Week", "game": "rs3", "game_label": "RuneScape 3",
+         "metric": "skill:Mining", "metric_label": "Mining", "unit": "xp",
+         "starts_at": "2026-11-15T18:00:00Z", "ends_at": "2026-11-22T18:00:00Z", "status": "running"}]},
 }
+
+RS_METRICS = [{"value": "overall", "label": "Overall", "group": "Overall"},
+              {"value": "skill:Mining", "label": "Mining", "group": "Skills"},
+              {"value": "activity:Zulrah", "label": "Zulrah", "group": "Bosses and activities"}]
+
+
+def runescape_board(query):
+    """The same members for every game and period; Overall or the Mining board."""
+    metric = (query.get("metric") or ["overall"])[0]
+    mining = metric == "skill:Mining"
+    return {"game": (query.get("game") or ["rs3"])[0], "period": (query.get("period") or ["week"])[0],
+            "metric": metric, "metric_label": "Mining" if mining else "Overall", "unit": "xp",
+            "metrics": RS_METRICS, "updated_at": "2026-11-16T06:17:00Z",
+            "items": [{"id": 7, "name": "E2E Wingman", "total_level": 2898, "total_xp": 412345678,
+                       "rank": 1234, "value": 13034431 if mining else 412345678,
+                       "level": 99 if mining else 2898, "unit": "xp",
+                       "updated_at": "2026-11-16T06:17:00Z",
+                       "gained": 900000 if mining else 1500000, "since": "2026-11-09T06:17:00Z",
+                       "partial": False, "top_skill": None if mining else {"name": "Mining", "xp": 900000},
+                       "account_type": "ironman", "account_label": "Ironman", "account_short": "IM"}]}
+
+
+RS_PLAYER = {"id": 7, "name": "E2E Wingman", "games": [
+    {"game": "rs3", "label": "RuneScape 3", "name": "E2E Wingman", "account_type": "ironman",
+     "account_label": "Ironman", "account_short": "IM", "death": None,
+     "updated_at": "2026-11-16T06:17:00Z", "total_level": 2898, "total_xp": 412345678, "rank": 1234,
+     "week_gained": 1500000, "skills": [{"name": "Mining", "level": 99, "xp": 13034431, "rank": 50,
+                                          "week_gained": 900000}],
+     "activities": [{"name": "Zulrah", "score": 42, "rank": 9000, "week_gained": 0}],
+     "quests": {"qp": 300, "qp_max": 476, "completed": 200, "started": 3, "total": 366, "quests": []}}],
+    "events": [{"id": 1, "member_id": 7, "name": "E2E Wingman", "game": "rs3", "kind": "milestone",
+                "text": "reached 99 Mining", "detail": None, "happened_at": "2026-11-15T06:17:00Z"}]}
+
+RS_COMPETITION = dict(PUBLIC["/runescape/competitions.php"]["items"][0], items=[
+    {"id": 7, "name": "E2E Wingman", "gained": 250000, "start": 12784431, "end": 13034431, "level": 99,
+     "account_short": "IM"},
+    {"id": 8, "name": "E2E Latecomer", "gained": None, "start": None, "end": None, "level": None,
+     "account_short": ""}])
 
 ADMIN = {
     "/admin/news.php": {"items": [{"id": 1, "title": "E2E headline", "body": "b", "published": 1,
@@ -132,6 +178,17 @@ class Handler(BaseHTTPRequestHandler):
         api = self.api_path()
         with lock:
             state["requests"].append(f"GET {api or path}")
+        query = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
+        if api == "/runescape.php":
+            return self.reply(200, runescape_board(query))
+        if api == "/runescape/player.php":
+            if query.get("id") != ["7"]:
+                return self.reply(404, {"error": "Player not found."})
+            return self.reply(200, RS_PLAYER)
+        if api == "/runescape/competitions.php" and "id" in query:
+            if query.get("id") != ["3"]:
+                return self.reply(404, {"error": "Competition not found."})
+            return self.reply(200, RS_COMPETITION)
         if api in PUBLIC:
             return self.reply(200, PUBLIC[api])
         if api in ADMIN:
@@ -156,6 +213,12 @@ class Handler(BaseHTTPRequestHandler):
             with lock:
                 state["logouts"] += 1
             return self.reply(200, {"success": True})
+        if api == "/runescape/signup.php":
+            signup = json.loads(self.body() or b"{}")
+            with lock:
+                state["rs_signups"].append(signup)
+            return self.reply(201, {"success": True, "message": "Thanks! Staff will review your sign-up.",
+                                    "warnings": []})
         if api == "/admin/gallery-upload.php":
             if not self.authorized():
                 return self.reply(401, {"error": "Not signed in."})

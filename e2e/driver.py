@@ -141,6 +141,51 @@ class Run:
         self.expect("Browse servers")  # back on Home
         return clip
 
+    def runescape(self):
+        self.ui.activate(self.expect("More", role="tab"))
+        self.tap("RuneScape leaderboard")
+        self.expect("E2E Wingman")
+        self.expect("+1,500,000 XP")
+        self.shot("runescape")
+        # Board picker: Mining shows the skill's XP and level.
+        self.tap("Board: Overall")
+        self.tap("Mining")
+        self.expect("+900,000 XP")
+        self.expect("Level 99")
+        self.expect("Board: Mining")
+        self.shot("runescape-mining")
+        # Profile.
+        self.tap("E2E Wingman")
+        self.expect("XP this week")
+        self.expect("200 / 366")
+        self.expect("13,034,431 XP · +900,000 this week")
+        self.shot("runescape-profile")
+        self.ui.key("Escape")
+        self.expect("Board: Mining")
+        # Competition and achievements further down the page.
+        self.expect("E2E Wingman reached 99 Mining")
+        self.tap("E2E Skill of the Week")
+        self.expect("+250,000 XP")
+        self.expect("waiting")
+        self.shot("runescape-competition")
+        self.ui.key("Escape")
+        self.expect("Board: Mining")
+        self.tap("Sign up")
+        self.expect("Enter your Discord username so staff can reach you.")
+        self.ui.fill(self.expect("Discord username"), "e2e_member")
+        self.ui.fill(self.expect("Old School name (optional)"), "E2E Iron")
+        self.tap("Show my RuneScape names, stats and achievements on the FWG leaderboard (website, app and Discord).")
+        self.tap("Sign up")
+        self.expect("Thanks! Staff will review your sign-up.", timeout=30)
+        signups = mock_state()["rs_signups"]
+        expected = {"discord": "e2e_member", "rs3_name": "", "osrs_name": "E2E Iron", "message": "",
+                    "consent": True}
+        if signups != [expected]:
+            raise Failed(f"unexpected RuneScape sign-ups: {signups}")
+        self.shot("runescape-signed-up")
+        self.ui.key("Escape")
+        self.expect("Staff administration")  # back on More
+
     def open_staff(self):
         self.ui.activate(self.expect("More", role="tab"))
         self.tap("Staff administration")
@@ -218,6 +263,7 @@ def main():
     checks = [
         ("public screens", run.public_screens),
         ("server page, clipboard and Escape", run.server_page),
+        ("RuneScape leaderboard and sign-up", run.runescape),
         ("staff sign-in", run.sign_in),
         ("gallery upload through the file picker", lambda: run.upload(fixture)),
         ("restart keeps the session (OS keyring)", lambda: (backend.restart(), run.session_restored())),

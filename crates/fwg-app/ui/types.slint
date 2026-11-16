@@ -8,6 +8,8 @@ export enum Page {
     // Staff area (port of admin.tsx, manage-*.tsx, account-security.tsx).
     staff, manage-news, manage-gallery, manage-staff, push-history, account,
     manage-servers, edit-server,
+    // RuneScape leaderboard, its board picker, a member's profile and a competition's standings.
+    runescape, runescape-boards, runescape-player, runescape-competition,
 }
 
 export enum LoadKind { loading, failed, offline, ready }
@@ -337,6 +339,113 @@ export global ServerState {
     callback reset();
     // "#4f8fe8" → colour for the swatch; transparent when invalid.
     pure callback accent-color(string) -> color;
+}
+
+// One member on the RuneScape leaderboard (or in a competition).
+export struct RsRow {
+    // Member id for the profile; 0 when the row can't be opened.
+    id: int,
+    place: string,
+    name: string,
+    // Account badge: "IM", "HC", "HC†", "UIM" or empty.
+    badge: string,
+    // "+1,000,000 XP" (week/month) or "5,800,000,000 XP" (all time).
+    value: string,
+    // Green for a gain above zero.
+    gained: bool,
+    // "Total level 3,232 · Top skill: Attack +1,000,000 · Joined Nov 16".
+    detail: string,
+}
+
+// A board on the picker. `heading` is set on the first board of each group.
+export struct RsBoardChoice {
+    value: string,
+    label: string,
+    heading: string,
+    selected: bool,
+}
+
+// An achievement: "Settled reached 99 Attack", "Old School · Nov 16, 2026".
+export struct RsFeedRow {
+    title: string,
+    detail: string,
+    // "milestone", "death" or "log".
+    kind: string,
+}
+
+// A competition card on the leaderboard page.
+export struct RsCompRow {
+    id: int,
+    title: string,
+    // "upcoming", "running" or "ended"; `status-label` is what's shown.
+    status: string,
+    status-label: string,
+    detail: string,
+}
+
+// One line on a profile. kind: "section" (game heading: title, detail), "stat" (title, value),
+// "note" (a paragraph; highlight for a Hardcore death), "row" (skill/boss: title, value, detail;
+// highlight when it gained this week), "heading" (small sub-heading).
+export struct RsLine {
+    kind: string,
+    title: string,
+    value: string,
+    detail: string,
+    highlight: bool,
+}
+
+// RuneScape leaderboard and sign-up (the website's /runescape page). The form fields are two-way
+// bound to the inputs; Rust reads them on submit and clears them on success.
+export global RuneScapeState {
+    in property <LoadState> state;
+    in property <[RsRow]> rows;
+    // Chosen board ("overall", "skill:Attack", …) and its label; the picker's list.
+    in property <string> metric: "overall";
+    in property <string> metric-label: "Overall";
+    in property <[RsBoardChoice]> boards;
+    // Running/upcoming then recent competitions, and the latest achievements (both hidden when empty).
+    in property <[RsCompRow]> competitions;
+    in property <[RsFeedRow]> feed;
+
+    // Profile page.
+    in property <LoadState> player-state;
+    in property <string> player-name;
+    in property <[RsLine]> player-lines;
+    in property <[RsFeedRow]> player-feed;
+
+    // Competition page.
+    in property <LoadState> comp-state;
+    in property <string> comp-title;
+    in property <string> comp-eyebrow;
+    in property <string> comp-status;
+    in property <string> comp-status-label;
+    in property <string> comp-detail;
+    in property <[RsRow]> comp-rows;
+    in property <string> comp-footnote;
+    // "rs3"/"osrs" and "week"/"month"/"all".
+    in property <string> game: "rs3";
+    in property <string> period: "week";
+    in property <string> game-label: "RuneScape 3";
+    in property <string> footnote;
+
+    in-out property <string> discord;
+    in-out property <string> rs3-name;
+    in-out property <string> osrs-name;
+    in-out property <string> message;
+    in-out property <bool> consent;
+    in property <bool> busy;
+    // Result or error under the sign-up button.
+    in property <string> notice;
+    in property <bool> notice-error;
+
+    callback select(string, string);
+    callback select-board(string);
+    callback open-player(int);
+    callback open-competition(int);
+    callback reload();
+    callback reload-player();
+    callback reload-competition();
+    callback sign-up();
 }
 
 export global AppState {

@@ -546,6 +546,321 @@ pub struct ServerDeleted {
     pub deleted: bool,
 }
 
+// ---------------------------------------------------------------- RuneScape leaderboard
+
+/// Which hiscores a board or name belongs to: RuneScape 3 or Old School.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RsGame {
+    #[default]
+    Rs3,
+    Osrs,
+}
+
+impl RsGame {
+    pub const ALL: [RsGame; 2] = [Self::Rs3, Self::Osrs];
+
+    /// The website's query value (`rs3`, `osrs`).
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Rs3 => "rs3",
+            Self::Osrs => "osrs",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Rs3 => "RuneScape 3",
+            Self::Osrs => "Old School",
+        }
+    }
+}
+
+/// XP gained this week or month, or the all-time totals.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RsPeriod {
+    #[default]
+    Week,
+    Month,
+    All,
+}
+
+impl RsPeriod {
+    pub const ALL: [RsPeriod; 3] = [Self::Week, Self::Month, Self::All];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Week => "week",
+            Self::Month => "month",
+            Self::All => "all",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Week => "This week",
+            Self::Month => "This month",
+            Self::All => "All time",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsSkillGain {
+    pub name: String,
+    pub xp: i64,
+}
+
+/// One member on `GET /runescape.php`. Unranked values are `null`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsEntry {
+    /// Member id, for the profile (`/runescape/player.php?id=`).
+    #[serde(default)]
+    pub id: i64,
+    pub name: String,
+    /// The chosen board's current value: XP, a boss/activity score, or quest points.
+    #[serde(default)]
+    pub value: Option<i64>,
+    /// Skill level (skill boards) or total level (Overall).
+    #[serde(default)]
+    pub level: Option<i64>,
+    /// "xp", "score" or "qp".
+    #[serde(default)]
+    pub unit: String,
+    /// "IM", "HC", "HC†", "UIM", or empty for a regular account.
+    #[serde(default)]
+    pub account_short: String,
+    #[serde(default)]
+    pub quests_completed: Option<i64>,
+    #[serde(default)]
+    pub quests_total: Option<i64>,
+    #[serde(default)]
+    pub total_level: Option<i64>,
+    #[serde(default)]
+    pub total_xp: Option<i64>,
+    #[serde(default)]
+    pub rank: Option<i64>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+    /// `None` on the all-time board.
+    #[serde(default)]
+    pub gained: Option<i64>,
+    /// When the gain is counted from.
+    #[serde(default)]
+    pub since: Option<String>,
+    /// Joined during the period, so the gain only covers part of it.
+    #[serde(default)]
+    pub partial: bool,
+    #[serde(default)]
+    pub top_skill: Option<RsSkillGain>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsBoard {
+    pub game: RsGame,
+    pub period: RsPeriod,
+    /// "overall", "skill:Attack", "activity:Zulrah" or "quests" (RS3).
+    #[serde(default)]
+    pub metric: String,
+    #[serde(default)]
+    pub metric_label: String,
+    #[serde(default)]
+    pub unit: String,
+    /// Every board this game has, for the picker.
+    #[serde(default)]
+    pub metrics: Vec<RsMetric>,
+    /// Latest snapshot time (ISO 8601), `None` while the board is empty.
+    #[serde(default)]
+    pub updated_at: Option<String>,
+    pub items: Vec<RsEntry>,
+}
+
+/// Body of `POST /runescape/signup.php`. Empty names are sent as `""`.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct RsSignup {
+    pub discord: String,
+    pub rs3_name: String,
+    pub osrs_name: String,
+    pub message: String,
+    pub consent: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsSignupResult {
+    #[serde(deserialize_with = "de::boolean")]
+    pub success: bool,
+    #[serde(default)]
+    pub message: String,
+    /// Names that weren't found on the hiscores (the sign-up still went through).
+    #[serde(default)]
+    pub warnings: Vec<String>,
+}
+
+/// A board the leaderboard can be ranked by.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsMetric {
+    pub value: String,
+    pub label: String,
+    /// "Overall", "Skills", "Quests", "Bosses and activities".
+    #[serde(default)]
+    pub group: String,
+}
+
+/// An achievement on `GET /runescape/feed.php` or a profile.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsEvent {
+    pub id: i64,
+    #[serde(default)]
+    pub member_id: i64,
+    pub name: String,
+    pub game: RsGame,
+    /// "milestone", "death" or "log" (RS3 Adventurer's Log).
+    #[serde(default)]
+    pub kind: String,
+    /// Follows the name: "reached 99 Attack".
+    pub text: String,
+    #[serde(default)]
+    pub detail: Option<String>,
+    #[serde(default)]
+    pub happened_at: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsSkill {
+    pub name: String,
+    #[serde(default)]
+    pub level: Option<i64>,
+    #[serde(default)]
+    pub xp: Option<i64>,
+    #[serde(default)]
+    pub rank: Option<i64>,
+    #[serde(default)]
+    pub week_gained: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsActivity {
+    pub name: String,
+    #[serde(default)]
+    pub score: i64,
+    #[serde(default)]
+    pub rank: Option<i64>,
+    #[serde(default)]
+    pub week_gained: Option<i64>,
+}
+
+/// RS3 quest summary from the Adventurer's Log (the app doesn't use the quest list itself).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsQuests {
+    #[serde(default)]
+    pub qp: i64,
+    #[serde(default)]
+    pub qp_max: i64,
+    #[serde(default)]
+    pub completed: i64,
+    #[serde(default)]
+    pub total: i64,
+}
+
+/// A Hardcore Ironman death: "lost Hardcore Ironman status", cause and place, and when.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsDeath {
+    pub text: String,
+    #[serde(default)]
+    pub detail: Option<String>,
+    #[serde(default)]
+    pub at: Option<String>,
+}
+
+/// One game on a profile. The stats are missing until the member's first update.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsProfileGame {
+    pub game: RsGame,
+    pub name: String,
+    #[serde(default)]
+    pub account_label: String,
+    #[serde(default)]
+    pub account_short: String,
+    #[serde(default)]
+    pub death: Option<RsDeath>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+    #[serde(default)]
+    pub total_level: Option<i64>,
+    #[serde(default)]
+    pub total_xp: Option<i64>,
+    #[serde(default)]
+    pub rank: Option<i64>,
+    #[serde(default)]
+    pub week_gained: Option<i64>,
+    #[serde(default)]
+    pub skills: Vec<RsSkill>,
+    #[serde(default)]
+    pub activities: Vec<RsActivity>,
+    #[serde(default)]
+    pub quests: Option<RsQuests>,
+}
+
+/// `GET /runescape/player.php?id=`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsProfile {
+    pub id: i64,
+    pub name: String,
+    pub games: Vec<RsProfileGame>,
+    #[serde(default)]
+    pub events: Vec<RsEvent>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RsCompetitionStatus {
+    #[default]
+    Upcoming,
+    Running,
+    Ended,
+}
+
+/// A competition on `GET /runescape/competitions.php`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsCompetition {
+    pub id: i64,
+    pub title: String,
+    pub game: RsGame,
+    #[serde(default)]
+    pub metric_label: String,
+    /// "xp" or "score".
+    #[serde(default)]
+    pub unit: String,
+    pub starts_at: String,
+    pub ends_at: String,
+    #[serde(default)]
+    pub status: RsCompetitionStatus,
+}
+
+/// A player in a competition. `gained` is `None` until their stats are captured during it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsStanding {
+    pub id: i64,
+    pub name: String,
+    #[serde(default)]
+    pub gained: Option<i64>,
+    #[serde(default)]
+    pub start: Option<i64>,
+    #[serde(default)]
+    pub end: Option<i64>,
+    #[serde(default)]
+    pub account_short: String,
+}
+
+/// `GET /runescape/competitions.php?id=`: the competition and its standings.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RsCompetitionDetail {
+    #[serde(flatten)]
+    pub competition: RsCompetition,
+    pub items: Vec<RsStanding>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
