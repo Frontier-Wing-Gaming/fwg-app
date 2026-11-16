@@ -10,7 +10,7 @@ release as the en-US "What's new", and refuses to upload if it is empty or too l
 
 ## Pending release
 
-Version: next after **1.4.0** (bump `version` in `Cargo.toml`), versionCode **16**  
+Version: **1.5.0**, versionCode **16**  
 Build: GitHub Actions → Play release → Run workflow with versionCode 16 (uploads to Internal
 testing), or locally `.\android\build.ps1 -Release -VersionCode 16`  
 Status: changes pending, not uploaded.
