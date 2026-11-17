@@ -10,21 +10,35 @@ release as the en-US "What's new", and refuses to upload if it is empty or too l
 
 ## Pending release
 
-Version: **1.5.1**, versionCode **17**  
-Build: GitHub Actions → Play release → Run workflow with versionCode 17 (uploads to Internal
-testing), or locally `.\android\build.ps1 -Release -VersionCode 17`  
-Status: changes pending, not uploaded.
+Version: next after **1.5.1** (bump `version` in `Cargo.toml`), versionCode **18**  
+Build: GitHub Actions → Play release → Run workflow with versionCode 18 (uploads to Internal
+testing), or locally `.\android\build.ps1 -Release -VersionCode 18`  
+Status: nothing pending yet.
 
 ### Copy for Google Play — What's new
 
 Copy only the text inside this block:
 
 ```text
+```
+
+### Details
+
+## Submitted releases
+
+### 1.5.1 (versionCode 17) — Internal testing
+
+Uploaded to Internal testing on 2026-11-16 by the Play release workflow. Desktop builds are on the
+GitHub release `v1.5.1`.
+
+#### What's new (as submitted)
+
+```text
 • The app now turns to landscape and fills tablet and foldable screens.
 • Updated Android libraries for newer Android versions.
 ```
 
-### Details
+#### Details
 
 Play Console's "For your next release" checks on 1.4.0, all addressed:
 - Outdated `androidx.fragment:fragment` 1.1.0 and `androidx.activity:activity` 1.0.0: Google Play
@@ -44,8 +58,6 @@ Play Console's "For your next release" checks on 1.4.0, all addressed:
   fills the width and keeps clear of the camera cutout.
 - Picture-in-picture: not applicable. The app has no video player (Live opens streams in their own
   apps), so this suggestion is left alone.
-
-## Submitted releases
 
 ### 1.5.0 (versionCode 16) — Internal testing
 
